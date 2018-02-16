@@ -24,11 +24,9 @@
  checking on FPGA image, enable it */
 #undef CONFIG_CHECK_FPGA_DATA_CRC
 
-#if	defined(CONFIG_CHECK_FPGA_DATA_CRC)
-#define RBFCOREIMAGE "ghrd_10as066n2.core.rbf.mkimage\0"
-#else
-#define RBFCOREIMAGE "ghrd_10as066n2.core.rbf\0"
-#endif
+
+#define RBFCOREIMAGE "a/fpga.rbf\0"
+
 /* Global data */
 #define SIZEOF_GD	(0xc0)
 
@@ -233,7 +231,7 @@
 #elif defined(CONFIG_MMC)
 #define CONFIG_BOOTCOMMAND " run core_rbf_prog; run callscript; run mmcload;" \
 	"run set_initswstate; run mmcboot"
-#define CONFIG_LINUX_DTB_NAME	socfpga_arria10_socdk_sdmmc.dtb
+#define CONFIG_LINUX_DTB_NAME	cx_controller.dtb
 #elif defined(CONFIG_CADENCE_QSPI)
 #define CONFIG_BOOTCOMMAND "run qspirbfcore_rbf_prog; run qspiload;" \
 	"run set_initswstate; run qspiboot"
@@ -260,30 +258,16 @@
 
 #define CONFIG_EXTRA_ENV_SETTINGS \
 	"verify=y\0" \
+	"boot_a_b=a\0" \
 	"loadaddr=" __stringify(CONFIG_SYS_LOAD_ADDR) "\0" \
 	"fdtaddr=" __stringify(CONFIG_SYS_DTB_ADDR) "\0" \
-	"bootimage=zImage\0" \
 	"bootimagesize=0x5F0000\0" \
-	"fdtimage=" __stringify(CONFIG_LINUX_DTB_NAME) "\0" \
 	"fdtimagesize=" __stringify(MAX_DTB_SIZE_IN_RAM) "\0" \
 	"fdt_high=0x2000000\0" \
+	"mmc_rootfs_a=/dev/mmcblk0p5\0" \
+	"mmc_rootfs_b=/dev/mmcblk0p6\0" \
 	"mmcloadcmd=fatload\0" \
 	"mmcloadpart=1\0" \
-	"mmcroot=/dev/mmcblk0p2\0" \
-	"qspi_upage_cs=2\0" \
-	"qspiloadcs=0\0" \
-	"qspibootimageaddr=0x120000\0" \
-	"qspifdtaddr=0x100000\0" \
-	"qspirbfaddr=" __stringify(CONFIG_QSPI_RBF_ADDR) "\0" \
-	"qspiroot=/dev/mtdblock1\0" \
-	"qspirootfstype=jffs2\0" \
-	"nandbootimageaddr=0x120000\0" \
-	"nandfdtaddr=0x100000\0" \
-	"nandrbfcoreimage=0x820000\0" \
-	"nandroot=/dev/mtdblock1\0" \
-	"nandrootfstype=jffs2\0" \
-	"nandrbfcore_rbf_prog=" \
-		"fpga loadfs 0 nand 0:0 ${nandrbfcoreimage} core\0" \
 	"ramboot=setenv bootargs " CONFIG_BOOTARGS \
 		" printk.time=1 debug mem=${fdt_high} " \
 		"lpj=3977216;fpgabr 1; bootz ${loadaddr} - ${fdtaddr}\0" \
@@ -293,24 +277,8 @@
 	"mmcboot=setenv bootargs " CONFIG_BOOTARGS \
 		" root=${mmcroot} rw rootwait;" \
 		"fpgabr 1;" \
-		"bootz ${loadaddr} - ${fdtaddr}\0" \
-	"netboot=dhcp ${bootimage};" \
-		"tftp ${fdtaddr} ${fdtimage} ; run ramboot\0" \
-	"qspiload=sf probe ${qspiloadcs};" \
-		"sf read ${loadaddr} ${qspibootimageaddr} ${bootimagesize};" \
-		"sf read ${fdtaddr} ${qspifdtaddr} ${fdtimagesize};\0" \
-	"qspiboot=setenv bootargs " CONFIG_BOOTARGS \
-		" root=${qspiroot} rw rootfstype=${qspirootfstype};" \
-		"fpgabr 1;" \
-		"bootz ${loadaddr} - ${fdtaddr}\0" \
-	"nandload=" \
-		"nand read ${loadaddr} ${nandbootimageaddr} ${bootimagesize};" \
-		"nand read ${fdtaddr} ${nandfdtaddr} ${fdtimagesize}\0" \
-	"nandboot=setenv bootargs " CONFIG_BOOTARGS \
-		" root=${nandroot} rw rootfstype=${nandrootfstype};" \
-		"fpgabr 1;" \
-		"bootz ${loadaddr} - ${fdtaddr}\0" \
-	"bootcmd=" CONFIG_BOOTCOMMAND "\0" \
+		"bootm ${loadaddr} - ${fdtaddr}\0" \
+	"bootcmd= "CONFIG_BOOTCOMMAND" \0" \
 	"u-boot_swstate_reg=0xffd0620c\0" \
 	"u-boot_image_valid=0x49535756\0" \
 	"set_initswstate=" \
@@ -324,11 +292,15 @@
 	"fpgadatasize=0x700000\0" \
 	"rbftosdramaddr=0x40\0" \
 	"rbfcoreimage=" RBFCOREIMAGE \
+	"mmcroot=/dev/mmcblk0p5\0" \
+	"bootimage=uImage\0" \
+	"fdtimage=cx_controller.dtb\0" \
+	"set_mmc_root_fs= setenv mmcroot ${mmc_rootfs_${boot_a_b}}" \
+	"set_bootimage= setenv bootimage ${boot_a_b}/uImage\0" \
+	"set_fdtimage= setenv fdtimage ${boot_a_b}/cx_controller.dtb\0" \
 	"cff_devsel_partition=0:1\0" \
-	"qspirbfcoreimage=0x820000\0" \
-	"qspirbfcore_rbf_prog=" \
-		"fpga loadfs 0 qspi 0:0 ${qspirbfcoreimage} core\0" \
-	"core_rbf_prog=fpga loadfs 0 mmc 0:1 ${rbfcoreimage} core\0" \
+	"cff_rbf_filename=fpga.rbf\0" \
+	"core_rbf_prog=fpga loadfs 0 mmc 0:0 ${rbfcoreimage} core\0" \
 	CONFIG_KSZ9021_CLK_SKEW_ENV "=" \
 		__stringify(CONFIG_KSZ9021_CLK_SKEW_VAL) "\0" \
 	CONFIG_KSZ9021_DATA_SKEW_ENV "=" \
@@ -449,7 +421,7 @@
  * This is default UART base address, but it can be changed through
  * set_serial_port() during run time
  */
-#define CONFIG_SYS_NS16550_COM1		SOCFPGA_UART1_ADDRESS
+#define CONFIG_SYS_NS16550_COM1		SOCFPGA_UART0_ADDRESS
 #define CONFIG_SYS_BAUDRATE_TABLE {4800, 9600, 19200, 38400, 57600, 115200}
 #define CONFIG_SYS_NS16550_CLK		(cm_l4_sp_clk_hz)
 
@@ -531,7 +503,10 @@
 
 #define CONFIG_ENV_IS_IN_MMC
 #define CONFIG_SYS_MMC_ENV_DEV		0/* device 0 */
-#define CONFIG_ENV_OFFSET		512/* just after the MBR */
+#define CONFIG_ENV_OFFSET		(0x200000) /* after u-boot */
+#ifndef CONFIG_ENV_OFFSET_REDUND
+#define CONFIG_ENV_OFFSET_REDUND        (0x280000) /* after first*/
+#endif
 
 #define CONFIG_CMD_FAT
 #define CONFIG_CMD_MMC
@@ -664,8 +639,10 @@ CONFIG_NAND_DENALI is also defined.
 
 /* Room required on the stack for the environment data */
 #ifndef CONFIG_ENV_SIZE
-#define CONFIG_ENV_SIZE			4096
+#define CONFIG_ENV_SIZE			(6 * 1024)
 #endif
+
+
 /* Size of DRAM reserved for malloc() use */
 #define CONFIG_SYS_MALLOC_LEN		(1 * 1024 * 1024)
 

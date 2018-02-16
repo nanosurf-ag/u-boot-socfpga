@@ -22,7 +22,7 @@
 
 DECLARE_GLOBAL_DATA_PTR;
 
-static const const char *boot_flash_type = CONFIG_BOOT_FLASH_TYPE;
+static const char *boot_flash_type = CONFIG_BOOT_FLASH_TYPE;
 
 /* Local functions */
 static int cff_flash_read(struct cff_flash_info *cff_flashinfo, u32 *buffer,
@@ -140,22 +140,35 @@ int cff_from_sdmmc_env(void)
 	int len = 0;
 	int rval = -1;
 	fpga_fs_info fpga_fsinfo;
-	const char *cff = get_cff_filename(gd->fdt_blob, &len);
+        
+        fpga_fsinfo.filename = getenv("cff_rbf_filename");
+        fpga_fsinfo.filename = NULL;
+        
+        if(NULL == fpga_fsinfo.filename)
+        {
+                printf("No cff_rbf_filename found in environment trying device tree\n");
+                
+                const char *cff = get_cff_filename(gd->fdt_blob, &len);
+                
+                if (cff && (len > 0)) 
+                {
+                        fpga_fsinfo.filename = (char *)cff;
+                }
+        }
 
-	if (cff && (len > 0)) {
+	if(NULL != fpga_fsinfo.filename)
+        {                
 		mmc_initialize(gd->bd);
-
-		fpga_fsinfo.filename = (char *)cff;
 
 		fpga_fsinfo.interface = "sdmmc";
 
 		fpga_fsinfo.dev_part = getenv("cff_devsel_partition");
 
-		if (NULL == fpga_fsinfo.dev_part) {
-			fpga_fsinfo.dev_part = "0:1";
-
-			printf("No SD/MMC partition found in environment. ");
+		if (NULL == fpga_fsinfo.dev_part) 
+                {
+			printf("No SD/MMC partition found in environment. %s \n", fpga_fsinfo.dev_part);
 			printf("Assuming 0:1.\n");
+                        fpga_fsinfo.dev_part = "0:1";
 		}
 
 		if (is_early_release_fpga_config(gd->fdt_blob))
