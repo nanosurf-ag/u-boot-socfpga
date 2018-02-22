@@ -14,6 +14,7 @@
 #include <asm/arch/misc.h>
 #include <ext4fs.h>
 #include <fs.h>
+#include <malloc.h>
 #include <mmc.h>
 #include <watchdog.h>
 #include <fdtdec.h>
@@ -22,6 +23,14 @@
 DECLARE_GLOBAL_DATA_PTR;
 
 static const char *boot_flash_type = CONFIG_BOOT_FLASH_TYPE;
+static char cff_rbf_filename[25];
+
+static inline void *zalloc(size_t size)
+{
+	void *p = memalign(ARCH_DMA_MINALIGN, size);
+	memset(p, 0, size);
+	return p;
+}
 
 /* Local functions */
 static int cff_flash_read(struct cff_flash_info *cff_flashinfo, u32 *buffer,
@@ -136,7 +145,6 @@ const char *get_cff_filename(const void *fdt, int *len)
 			cff_filename = cell;
 		}
 	}
-	printf("get_cff_filename  fdt_getprop\n");
 	return cff_filename;
 }
 
@@ -145,38 +153,41 @@ int cff_from_sdmmc_env(void)
 	int len = 0;
 	int rval = -1;
 	fpga_fs_info fpga_fsinfo;
-        
-        fpga_fsinfo.filename = getenv("cff_rbf_filename");
-        fpga_fsinfo.filename = NULL;
-        
-        if(NULL == fpga_fsinfo.filename)
-        {
-                printf("No cff_rbf_filename found in environment trying device tree\n");
-                
-                const char *cff = get_cff_filename(gd->fdt_blob, &len);
-                
-                if (cff && (len > 0)) 
-                {
-                        fpga_fsinfo.filename = (char *)cff;
-                }
-        }
+	char *tmp_cff_rbf_filename = NULL;
+	tmp_cff_rbf_filename = getenv("cff_rbf_filename");
 
-        printf("using rbf filename %s\n", fpga_fsinfo.filename);
+	if(NULL == tmp_cff_rbf_filename) {
+		printf("No cff_rbf_filename found in environment trying device tree\n");
+		printf("set cff_rbf_filename to change this\n");
+
+		const char *cff = get_cff_filename(gd->fdt_blob, &len);
+
+		if (cff && (len > 0)) {
+			fpga_fsinfo.filename = (char *)cff;
+		}
+	}
+	else {
+		len = strlen(tmp_cff_rbf_filename) +1;
+		strncpy(cff_rbf_filename, tmp_cff_rbf_filename, len);
+		fpga_fsinfo.filename = cff_rbf_filename;
+	}
+
+	printf("using rbf filename %s\n", fpga_fsinfo.filename);
 	if(NULL != fpga_fsinfo.filename)
-        {                
+	{
 		mmc_initialize(gd->bd);
 
 		fpga_fsinfo.interface = "sdmmc";
-
 		fpga_fsinfo.dev_part = getenv("cff_devsel_partition");
 
 		if (NULL == fpga_fsinfo.dev_part) 
                 {
 			printf("No SD/MMC partition found in environment. %s \n", fpga_fsinfo.dev_part);
-			printf("Assuming 0:1.\n");
-                        fpga_fsinfo.dev_part = "0:5";
+			printf("set cff_devsel_partition for changing partition\n");
+			printf("Assuming 0:2.\n");
+			fpga_fsinfo.dev_part = "0:2";
 		}
-		fpga_fsinfo.dev_part = "0:2";
+		printf("using dev_part %s\n", fpga_fsinfo.dev_part);
 
 		if (is_early_release_fpga_config(gd->fdt_blob))
 			fpga_fsinfo.rbftype = "periph";
@@ -185,10 +196,9 @@ int cff_from_sdmmc_env(void)
 
 		rval = cff_from_flash(&fpga_fsinfo);
 	}
-	else 
-        {
-            printf("ERROR fpga_fsinfo.filename) is NULL\n");
-        }
+	else {
+		printf("ERROR fpga_fsinfo.filename) is NULL\n");
+	}
 
 	return rval;
 }
