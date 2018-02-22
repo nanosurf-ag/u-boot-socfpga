@@ -1881,6 +1881,8 @@ void ext4fs_reinit_global(void)
 }
 void ext4fs_close(void)
 {
+        printf("ext4fs_close() ignored\n");
+        return;
 	if ((ext4fs_file != NULL) && (ext4fs_root != NULL)) {
 		ext4fs_free_node(ext4fs_file, &ext4fs_root->diropen);
 		ext4fs_file = NULL;

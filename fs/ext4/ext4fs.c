@@ -184,15 +184,16 @@ int ext4fs_ls(const char *dirname)
 
 int ext4fs_exists(const char *filename)
 {
-	int file_len;
-
-	file_len = ext4fs_open(filename);
-	return file_len >= 0;
+	return (ext4fs_size(filename) >= 0);
 }
 
 int ext4fs_size(const char *filename)
 {
-	return ext4fs_open(filename);
+	int file_len;
+
+	file_len = ext4fs_open(filename);
+
+	return file_len;
 }
 
 int ext4fs_read(char *buf, unsigned len)
