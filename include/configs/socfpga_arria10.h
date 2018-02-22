@@ -20,6 +20,11 @@
 #define CONFIG_UBOOT_EXE_ON_FPGA	0
 #endif
 
+#define FS_EXT4
+#define EXT4_WRITE
+#define CMD_EXT4
+
+
 /* Undef to increase boot performance, if you want checksum
  checking on FPGA image, enable it */
 #undef CONFIG_CHECK_FPGA_DATA_CRC
@@ -229,8 +234,7 @@
 #ifdef CONFIG_SEMIHOSTING
 #define CONFIG_BOOTCOMMAND ""
 #elif defined(CONFIG_MMC)
-#define CONFIG_BOOTCOMMAND " run core_rbf_prog; run callscript; run mmcload;" \
-	"run set_initswstate; run mmcboot"
+#define CONFIG_BOOTCOMMAND " run mmcload; run set_initswstate; run mmcboot"
 #define CONFIG_LINUX_DTB_NAME	cx_controller.dtb
 #elif defined(CONFIG_CADENCE_QSPI)
 #define CONFIG_BOOTCOMMAND "run qspirbfcore_rbf_prog; run qspiload;" \
@@ -258,19 +262,13 @@
 
 #define CONFIG_EXTRA_ENV_SETTINGS \
 	"verify=y\0" \
-	"boot_a_b=a\0" \
 	"loadaddr=" __stringify(CONFIG_SYS_LOAD_ADDR) "\0" \
 	"fdtaddr=" __stringify(CONFIG_SYS_DTB_ADDR) "\0" \
 	"bootimagesize=0x5F0000\0" \
 	"fdtimagesize=" __stringify(MAX_DTB_SIZE_IN_RAM) "\0" \
 	"fdt_high=0x2000000\0" \
-	"mmc_rootfs_a=/dev/mmcblk0p5\0" \
-	"mmc_rootfs_b=/dev/mmcblk0p6\0" \
-	"mmcloadcmd=fatload\0" \
-	"mmcloadpart=1\0" \
-	"ramboot=setenv bootargs " CONFIG_BOOTARGS \
-		" printk.time=1 debug mem=${fdt_high} " \
-		"lpj=3977216;fpgabr 1; bootz ${loadaddr} - ${fdtaddr}\0" \
+	"mmcloadcmd=ext4load\0" \
+	"mmcloadpart=2\0" \
 	"mmcload=mmc rescan;" \
 		"${mmcloadcmd} mmc 0:${mmcloadpart} ${loadaddr} ${bootimage};" \
 		"${mmcloadcmd} mmc 0:${mmcloadpart} ${fdtaddr} ${fdtimage}\0" \
@@ -291,22 +289,17 @@
 	"fpgadata=0x2000000\0" \
 	"fpgadatasize=0x700000\0" \
 	"rbftosdramaddr=0x40\0" \
-	"rbfcoreimage=" RBFCOREIMAGE \
-	"mmcroot=/dev/mmcblk0p5\0" \
-	"bootimage=uImage\0" \
-	"fdtimage=cx_controller.dtb\0" \
-	"set_mmc_root_fs= setenv mmcroot ${mmc_rootfs_${boot_a_b}}" \
-	"set_bootimage= setenv bootimage ${boot_a_b}/uImage\0" \
-	"set_fdtimage= setenv fdtimage ${boot_a_b}/cx_controller.dtb\0" \
-	"cff_devsel_partition=0:1\0" \
-	"cff_rbf_filename=fpga.rbf\0" \
-	"core_rbf_prog=fpga loadfs 0 mmc 0:0 ${rbfcoreimage} core\0" \
+	"mmcroot=/dev/mmcblk0p2\0" \
+	"bootimage=/boot/uImage\0" \
+	"fdtimage=/boot/cx_controller.dtb\0" \
+	"cff_devsel_partition=0:2\0" \
+	"cff_rbf_filename=/boot/fpga.rbf\0" \
 	CONFIG_KSZ9021_CLK_SKEW_ENV "=" \
 		__stringify(CONFIG_KSZ9021_CLK_SKEW_VAL) "\0" \
 	CONFIG_KSZ9021_DATA_SKEW_ENV "=" \
 		__stringify(CONFIG_KSZ9021_DATA_SKEW_VAL) "\0" \
 	"scriptfile=u-boot.scr\0" \
-	"callscript=if fatload mmc 0:1 $fpgadata $scriptfile;" \
+	"callscript=if ${mmcloadcmd} mmc 0:${mmcloadpart} $fpgadata $scriptfile;" \
 			"then source $fpgadata;" \
 		"else" \
 			"echo Optional boot script not found." \
