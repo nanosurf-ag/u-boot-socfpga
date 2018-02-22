@@ -12,10 +12,9 @@
 #include <asm/arch/reset_manager.h>
 #include <asm/arch/system_manager.h>
 #include <asm/arch/misc.h>
-#include <fat.h>
+#include <ext4fs.h>
 #include <fs.h>
 #include <mmc.h>
-#include <malloc.h>
 #include <watchdog.h>
 #include <fdtdec.h>
 #include <spi_flash.h>
@@ -42,12 +41,18 @@ static int cff_flash_probe(struct cff_flash_info *cff_flashinfo)
 	}
 #endif
 #ifdef CONFIG_MMC
-	/* we are looking at the FAT partition */
+	/* we are looking at the EXT partition */
 	if (fs_set_blk_dev("mmc", cff_flashinfo->sdmmc_flashinfo.dev_part,
-		FS_TYPE_FAT)) {
-		printf("Failed to set filesystem to FAT.\n");
+		FS_TYPE_EXT)) {
+		printf("Failed to set filesystem to EXT.\n");
 		return -2;
 	}
+
+	if (0 >= ext4fs_open(cff_flashinfo->sdmmc_flashinfo.filename)) {
+		printf("Failed open file %s .\n", cff_flashinfo->sdmmc_flashinfo.filename);
+		return -2;
+	}
+
 #endif
 #ifdef CONFIG_NAND_DENALI
 	if (nand_curr_device < 0) {
@@ -78,11 +83,10 @@ static int flash_read(struct cff_flash_info *cff_flashinfo,
 		buffer_ptr);
 #endif
 #ifdef CONFIG_MMC
-	bytesread = file_fat_read_at(cff_flashinfo->sdmmc_flashinfo.filename,
-			cff_flashinfo->flash_offset, buffer_ptr, size_read);
+        bytesread = ext4fs_read_with_offset((char*)buffer_ptr, cff_flashinfo->flash_offset, size_read);
 
 	if (bytesread != size_read) {
-		printf("Failed to read %s from FAT %d ",
+		printf("Failed to read %s from EXT %d ",
 			cff_flashinfo->sdmmc_flashinfo.filename, bytesread);
 		printf("!= %d.\n", size_read);
 		return -3;
@@ -132,6 +136,7 @@ const char *get_cff_filename(const void *fdt, int *len)
 			cff_filename = cell;
 		}
 	}
+	printf("get_cff_filename  fdt_getprop\n");
 	return cff_filename;
 }
 
@@ -156,6 +161,7 @@ int cff_from_sdmmc_env(void)
                 }
         }
 
+        printf("using rbf filename %s\n", fpga_fsinfo.filename);
 	if(NULL != fpga_fsinfo.filename)
         {                
 		mmc_initialize(gd->bd);
@@ -168,8 +174,9 @@ int cff_from_sdmmc_env(void)
                 {
 			printf("No SD/MMC partition found in environment. %s \n", fpga_fsinfo.dev_part);
 			printf("Assuming 0:1.\n");
-                        fpga_fsinfo.dev_part = "0:1";
+                        fpga_fsinfo.dev_part = "0:5";
 		}
+		fpga_fsinfo.dev_part = "0:2";
 
 		if (is_early_release_fpga_config(gd->fdt_blob))
 			fpga_fsinfo.rbftype = "periph";
@@ -178,6 +185,10 @@ int cff_from_sdmmc_env(void)
 
 		rval = cff_from_flash(&fpga_fsinfo);
 	}
+	else 
+        {
+            printf("ERROR fpga_fsinfo.filename) is NULL\n");
+        }
 
 	return rval;
 }
@@ -202,12 +213,12 @@ int cff_flash_preinit(struct cff_flash_info *cff_flashinfo,
 	ret = cff_flash_probe(cff_flashinfo);
 
 	if (0 >= ret) {
-		puts("Flash probe failed.\n");
+		printf("Flash probe failed ret =%u.\n", ret);
 		return ret;
 	}
 
 	/* checking the size of the file */
-	cff_flashinfo->remaining = fs_size(fpga_fsinfo->filename);
+	cff_flashinfo->remaining = ext4fs_size(fpga_fsinfo->filename);
 	if (cff_flashinfo->remaining == -1) {
 		printf("Error - %s not found within SDMMC.\n",
 			fpga_fsinfo->filename);
@@ -267,7 +278,7 @@ int cff_flash_read(struct cff_flash_info *cff_flashinfo, u32 *buffer,
 	bytesread = flash_read(cff_flashinfo, buffer_size, buffer_ptr);
 
 	if (0 >= bytesread) {
-		printf(" Failed to read rbf data from FAT.\n");
+		printf(" Failed to read rbf data from EXT.\n");
 		return -1;
 	}
 

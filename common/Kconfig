@@ -30,5 +30,19 @@ config CMD_GO
 	default y
 	help
 	  Start an application at a given address.
+	  
+config CMD_EXT4
+	bool "ext4 command support"
+	default y
+	select FS_EXT4
+	help
+	  Enables EXT4 FS command
 
+config CMD_EXT4_WRITE
+	depends on CMD_EXT4
+	bool "ext4 write command support"
+	default y
+	select EXT4_WRITE
+	help
+	  Enables EXT4 FS write command
 endmenu
