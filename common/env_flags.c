@@ -26,6 +26,10 @@
 #define ENV_FLAGS_NET_VARTYPE_REPS ""
 #endif
 
+#ifndef ARRAY_SIZE
+# define ARRAY_SIZE(x)  (sizeof(x) / sizeof((x)[0]))
+#endif
+
 static const char env_flags_vartype_rep[] = "sdxb" ENV_FLAGS_NET_VARTYPE_REPS;
 static const char env_flags_varaccess_rep[] = "aroc";
 static const int env_flags_varaccess_mask[] = {
