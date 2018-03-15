@@ -30,8 +30,6 @@
 #undef CONFIG_CHECK_FPGA_DATA_CRC
 
 
-#define RBFCOREIMAGE "a/fpga.rbf\0"
-
 /* Global data */
 #define SIZEOF_GD	(0xc0)
 
@@ -131,7 +129,7 @@
  * Console setup
  */
 /* Monitor Command Prompt */
-#define CONFIG_SYS_PROMPT		"SOCFPGA_ARRIA10 # "
+#define CONFIG_SYS_PROMPT		"CX# "
 
 /* EMAC controller and PHY used */
 #define CONFIG_EMAC_BASE		SOCFPGA_EMAC0_ADDRESS
@@ -214,7 +212,7 @@
  */
 
 /* Delay before automatically booting the default image */
-#define CONFIG_BOOTDELAY		5
+#define CONFIG_BOOTDELAY		1
 /* write protection for vendor parameters is completely disabled */
 #define CONFIG_ENV_OVERWRITE
 /* Enable auto completion of commands using TAB */
@@ -268,10 +266,10 @@
 	"fdtimagesize=" __stringify(MAX_DTB_SIZE_IN_RAM) "\0" \
 	"fdt_high=0x2000000\0" \
 	"mmcloadcmd=ext4load\0" \
-	"mmcloadpart=2\0" \
+	\
 	"mmcload=mmc rescan;" \
-		"${mmcloadcmd} mmc 0:${mmcloadpart} ${loadaddr} ${bootimage};" \
-		"${mmcloadcmd} mmc 0:${mmcloadpart} ${fdtaddr} ${fdtimage}\0" \
+		"${mmcloadcmd} mmc ${cff_devsel_partition} ${loadaddr} ${bootimage};" \
+		"${mmcloadcmd} mmc ${cff_devsel_partition} ${fdtaddr} ${fdtimage}\0" \
 	"mmcboot=setenv bootargs " CONFIG_BOOTARGS \
 		" root=${mmcroot} rw rootwait;" \
 		"fpgabr 1;" \
@@ -299,7 +297,7 @@
 	CONFIG_KSZ9021_DATA_SKEW_ENV "=" \
 		__stringify(CONFIG_KSZ9021_DATA_SKEW_VAL) "\0" \
 	"scriptfile=u-boot.scr\0" \
-	"callscript=if ${mmcloadcmd} mmc 0:${mmcloadpart} $fpgadata $scriptfile;" \
+	"callscript=if ${mmcloadcmd} mmc ${cff_devsel_partition} $fpgadata $scriptfile;" \
 			"then source $fpgadata;" \
 		"else" \
 			"echo Optional boot script not found." \
@@ -632,7 +630,7 @@ CONFIG_NAND_DENALI is also defined.
 
 /* Room required on the stack for the environment data */
 #ifndef CONFIG_ENV_SIZE
-#define CONFIG_ENV_SIZE			(6 * 1024)
+#define CONFIG_ENV_SIZE			(8 * 1024) /* two pages*/
 #endif
 
 
