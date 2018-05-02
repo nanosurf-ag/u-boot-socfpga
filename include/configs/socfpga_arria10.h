@@ -271,7 +271,7 @@
 		"${mmcloadcmd} mmc ${cff_devsel_partition} ${loadaddr} ${bootimage};" \
 		"${mmcloadcmd} mmc ${cff_devsel_partition} ${fdtaddr} ${fdtimage}\0" \
 	"mmcboot=setenv bootargs " CONFIG_BOOTARGS \
-		" root=${mmcroot} rw rootwait;" \
+		" rootfstype=ext4 root=${mmcroot} rw rootwait;" \
 		"fpgabr 1;" \
 		"bootm ${loadaddr} - ${fdtaddr}\0" \
 	"bootcmd= "CONFIG_BOOTCOMMAND" \0" \
