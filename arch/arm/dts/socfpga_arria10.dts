@@ -9,7 +9,7 @@
 / {
 	#address-cells = <1>;
 	#size-cells = <1>;
-	model = "CX Controller";	/* Bootloader setting: uboot.model */
+	model = "NSF CX";	/* Bootloader setting: uboot.model */
 
 	chosen {
 		cff-file = "fpga.rbf";	/* Bootloader setting: uboot.rbf_filename */
