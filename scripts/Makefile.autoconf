@@ -78,6 +78,7 @@ define filechk_config_h
 	echo \#include \<configs/$(CONFIG_SYS_CONFIG_NAME).h\>;		\
 	echo \#include \<asm/config.h\>;				\
 	echo \#include \<config_fallbacks.h\>;				\
+	echo \#include \<config_mender.h\>;				\
 	echo \#include \<config_uncmd_spl.h\>; )
 endef
 

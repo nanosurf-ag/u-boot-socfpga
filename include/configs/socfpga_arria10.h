@@ -230,17 +230,11 @@
  * Can't poll in semihosting; so turn off automatic boot command
  */
 #ifdef CONFIG_SEMIHOSTING
-#define CONFIG_BOOTCOMMAND ""
 #elif defined(CONFIG_MMC)
-#define CONFIG_BOOTCOMMAND " run mmcload; run set_initswstate; run mmcboot"
 #define CONFIG_LINUX_DTB_NAME	cx_controller.dtb
 #elif defined(CONFIG_CADENCE_QSPI)
-#define CONFIG_BOOTCOMMAND "run qspirbfcore_rbf_prog; run qspiload;" \
-	"run set_initswstate; run qspiboot"
 #define CONFIG_LINUX_DTB_NAME	socfpga_arria10_socdk_qspi.dtb
 #elif defined(CONFIG_NAND_DENALI)
-#define CONFIG_BOOTCOMMAND "run nandrbfcore_rbf_prog; run nandload;" \
-	"run set_initswstate; run nandboot"
 #define CONFIG_LINUX_DTB_NAME	socfpga_arria10_socdk_nand.dtb
 #else
 #error "unsupported configuration"
@@ -261,7 +255,7 @@
 #define CONFIG_EXTRA_ENV_SETTINGS \
 	"verify=y\0" \
 	"loadaddr=" __stringify(CONFIG_SYS_LOAD_ADDR) "\0" \
-	"fdtaddr=" __stringify(CONFIG_SYS_DTB_ADDR) "\0" \
+	"fdt_addr_r=" __stringify(CONFIG_SYS_DTB_ADDR) "\0" \
 	"bootimagesize=0x5F0000\0" \
 	"fdtimagesize=" __stringify(MAX_DTB_SIZE_IN_RAM) "\0" \
 	"fdt_high=0x2000000\0" \
@@ -271,10 +265,9 @@
 		"${mmcloadcmd} mmc ${cff_devsel_partition} ${loadaddr} ${bootimage};" \
 		"${mmcloadcmd} mmc ${cff_devsel_partition} ${fdtaddr} ${fdtimage}\0" \
 	"mmcboot=setenv bootargs " CONFIG_BOOTARGS \
-	" rootflags=barrier=1,commit=1,data=journal rootfstype=ext4 root=${mmcroot} rw rootwait;" \
+	" rootflags=barrier=1,commit=1,data=journal rootfstype=ext4 rw rootwait;" \
 		"fpgabr 1;" \
 		"bootm ${loadaddr} - ${fdtaddr}\0" \
-	"bootcmd= "CONFIG_BOOTCOMMAND" \0" \
 	"u-boot_swstate_reg=0xffd0620c\0" \
 	"u-boot_image_valid=0x49535756\0" \
 	"set_initswstate=" \
@@ -492,11 +485,7 @@
 
 #ifdef CONFIG_MMC
 
-#define CONFIG_ENV_IS_IN_MMC
-#define CONFIG_SYS_MMC_ENV_DEV		0/* device 0 */
-#define CONFIG_ENV_OFFSET		(0x200000) /* after u-boot */
 #ifndef CONFIG_ENV_OFFSET_REDUND
-#define CONFIG_ENV_OFFSET_REDUND        (0x280000) /* after first*/
 #endif
 
 #define CONFIG_CMD_FAT
@@ -554,9 +543,6 @@
 #define CONFIG_CQSPI_TCHSH_NS		(20)
 #define CONFIG_CQSPI_TSLCH_NS		(20)
 #define CONFIG_CQSPI_DECODER		(0)
-#define CONFIG_ENV_IS_IN_SPI_FLASH
-#define CONFIG_ENV_OFFSET		0x710000
-#define CONFIG_ENV_SIZE			(4 * 1024)
 #define CONFIG_ENV_SECT_SIZE		(4 * 1024)
 #define CONFIG_BOOT_FLASH_TYPE "qspi"
 #endif	/* CONFIG_CADENCE_QSPI */
@@ -575,7 +561,6 @@ CONFIG_NAND_DENALI is also defined.
 #endif
 
 /* here are the defines for NAND */
-#define CONFIG_ENV_IS_NOWHERE
 #define CONFIG_NAND_RBF_ADDR		0x720000
 #define CONFIG_CMD_NAND
 #define CONFIG_CMD_NAND_TRIMFFS		1
@@ -630,7 +615,6 @@ CONFIG_NAND_DENALI is also defined.
 
 /* Room required on the stack for the environment data */
 #ifndef CONFIG_ENV_SIZE
-#define CONFIG_ENV_SIZE			(8 * 1024) /* two pages*/
 #endif
 
 
