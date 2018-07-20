@@ -252,22 +252,21 @@
 #error "MAX_DTB_SIZE_IN_RAM is too big. It will overwrite zImage in memory."
 #endif
 
+#define CONFIG_BOOTCOMMAND "run mender_setup; run mmcload; run mmcboot;"
+
 #define CONFIG_EXTRA_ENV_SETTINGS \
 	"verify=y\0" \
-	"loadaddr=" __stringify(CONFIG_SYS_LOAD_ADDR) "\0" \
-	"fdt_addr_r=" __stringify(CONFIG_SYS_DTB_ADDR) "\0" \
-	"bootimagesize=0x5F0000\0" \
-	"fdtimagesize=" __stringify(MAX_DTB_SIZE_IN_RAM) "\0" \
+	"image_loadaddr=" __stringify(CONFIG_SYS_LOAD_ADDR) "\0" \
+	"dtb_loadaddr=" __stringify(CONFIG_SYS_DTB_ADDR) "\0" \
 	"fdt_high=0x2000000\0" \
 	"mmcloadcmd=ext4load\0" \
 	\
 	"mmcload=mmc rescan;" \
-		"${mmcloadcmd} mmc ${cff_devsel_partition} ${loadaddr} ${bootimage};" \
-		"${mmcloadcmd} mmc ${cff_devsel_partition} ${fdtaddr} ${fdtimage}\0" \
-	"mmcboot=setenv bootargs " CONFIG_BOOTARGS \
-	" rootflags=barrier=1,commit=1,data=journal rootfstype=ext4 rw rootwait;" \
+	  "${mmcloadcmd} ${mender_uboot_root} ${image_loadaddr} ${boot_image};" \
+	  "${mmcloadcmd} ${mender_uboot_root} ${dtb_loadaddr} ${dtb_image}\0" \
+  "mmcboot=run set_bootargs;" \
 		"fpgabr 1;" \
-		"bootm ${loadaddr} - ${fdtaddr}\0" \
+		"bootm ${image_loadaddr} - ${dtb_loadaddr}\0" \
 	"u-boot_swstate_reg=0xffd0620c\0" \
 	"u-boot_image_valid=0x49535756\0" \
 	"set_initswstate=" \
@@ -280,22 +279,18 @@
 	"fpgadata=0x2000000\0" \
 	"fpgadatasize=0x700000\0" \
 	"rbftosdramaddr=0x40\0" \
-	"mmcroot=/dev/mmcblk0p2\0" \
-	"bootimage=/boot/uImage\0" \
-	"fdtimage=/boot/cx_controller.dtb\0" \
+	"boot_image=/boot/uImage\0" \
+	"dtb_image=/boot/cx_controller.dtb\0" \
 	"cff_devsel_partition=0:2\0" \
 	"cff_rbf_filename=/boot/fpga.rbf\0" \
 	CONFIG_KSZ9021_CLK_SKEW_ENV "=" \
 		__stringify(CONFIG_KSZ9021_CLK_SKEW_VAL) "\0" \
 	CONFIG_KSZ9021_DATA_SKEW_ENV "=" \
 		__stringify(CONFIG_KSZ9021_DATA_SKEW_VAL) "\0" \
-	"scriptfile=u-boot.scr\0" \
-	"callscript=if ${mmcloadcmd} mmc ${cff_devsel_partition} $fpgadata $scriptfile;" \
-			"then source $fpgadata;" \
-		"else" \
-			"echo Optional boot script not found." \
-			"Continuing to boot normally;" \
-		"fi;\0"
+		"set_bootargs=setenv bootargs console=ttyS0,115200 rootflags=barrier=1,commit=1,data=journal rootfstype=ext4 rw rootwait root=${mender_kernel_root}\0" \
+  "bootcmd=run mender_setup;" \
+    "run mmcload;" \
+    "run mmcboot;\0"
 
 /*
  * Environment setup
