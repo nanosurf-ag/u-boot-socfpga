@@ -281,8 +281,9 @@
 	"rbftosdramaddr=0x40\0" \
 	"boot_image=/boot/uImage\0" \
 	"dtb_image=/boot/cx_controller.dtb\0" \
-	"cff_devsel_partition=0:2\0" \
-	"cff_rbf_filename=/boot/fpga.rbf\0" \
+	"cff_devsel_partition=0:4\0" \
+	"cff_rbf_filename=/fpga/fpga.rbf\0" \
+	"cff_rbf_filename_alt=/boot/fpga.rbf\0" \
 	CONFIG_KSZ9021_CLK_SKEW_ENV "=" \
 		__stringify(CONFIG_KSZ9021_CLK_SKEW_VAL) "\0" \
 	CONFIG_KSZ9021_DATA_SKEW_ENV "=" \
@@ -480,9 +481,6 @@
 
 #ifdef CONFIG_MMC
 
-#ifndef CONFIG_ENV_OFFSET_REDUND
-#endif
-
 #define CONFIG_CMD_FAT
 #define CONFIG_CMD_MMC
 /* Enable FAT write support */
@@ -507,71 +505,7 @@
 #define CONFIG_BOOT_FLASH_TYPE "mmc"
 #endif	/* CONFIG_MMC */
 
-/*
- * QSPI support
- */
-#define CONFIG_CQSPI_BASE		(SOCFPGA_QSPIREGS_ADDRESS)
-#define CONFIG_CQSPI_AHB_BASE		(SOCFPGA_QSPIDATA_ADDRESS)
-#ifdef CONFIG_CADENCE_QSPI
-/* Enable it if you want to use dual-stacked mode */
-#undef CONFIG_SF_DUAL_FLASH
-#define CONFIG_QSPI_RBF_ADDR 		0x720000
-#define CONFIG_SPI_FLASH		/* SPI flash subsystem */
-#define CONFIG_SPI_FLASH_STMICRO	/* Micron/Numonyx flash */
-#define CONFIG_SPI_FLASH_SPANSION	/* Spansion flash */
-#define CONFIG_SPI_FLASH_BAR		/* Enable access > 16MiB */
-#define CONFIG_CMD_SF			/* Serial flash commands */
-/* Flash device info */
-#define CONFIG_SF_DEFAULT_SPEED		(50000000)
-#define CONFIG_SF_DEFAULT_MODE		SPI_MODE_3
-#define CONFIG_SPI_FLASH_QUAD		(1)
-#define CONFIG_SPI_FLASH_BUS		0
-#define CONFIG_SPI_FLASH_CS		0
-/* QSPI reference clock */
-#define CONFIG_CQSPI_REF_CLK		(cm_l4_main_clk_hz)
-/* QSPI page size and block size */
-#define CONFIG_CQSPI_PAGE_SIZE		(256)
-#define CONFIG_CQSPI_BLOCK_SIZE		(16)
-/* QSPI Delay timing */
-#define CONFIG_CQSPI_TSHSL_NS		(200)
-#define CONFIG_CQSPI_TSD2D_NS		(255)
-#define CONFIG_CQSPI_TCHSH_NS		(20)
-#define CONFIG_CQSPI_TSLCH_NS		(20)
-#define CONFIG_CQSPI_DECODER		(0)
-#define CONFIG_ENV_SECT_SIZE		(4 * 1024)
-#define CONFIG_BOOT_FLASH_TYPE "qspi"
-#endif	/* CONFIG_CADENCE_QSPI */
 
-/*
- * NAND
- */
-#ifdef CONFIG_NAND_DENALI
-
-#ifdef CONFIG_MMC
-#error Cannot define CONFIG_MMC when CONFIG_NAND_DENALI is also defined.
-#endif
-#ifdef CONFIG_CADENCE_QSPI
-#error Cannot define CONFIG_CADENCE_QSPI when \
-CONFIG_NAND_DENALI is also defined.
-#endif
-
-/* here are the defines for NAND */
-#define CONFIG_NAND_RBF_ADDR		0x720000
-#define CONFIG_CMD_NAND
-#define CONFIG_CMD_NAND_TRIMFFS		1
-#define CONFIG_SYS_MAX_NAND_DEVICE	1
-/* the following, when defined, requries 128K from malloc! */
-#undef CONFIG_SYS_NAND_USE_FLASH_BBT
-#define CONFIG_SYS_NAND_ONFI_DETECTION
-/* will not compile with the following defined */
-#undef CONFIG_SYS_NAND_SELF_INIT
-#define CONFIG_SYS_NAND_REGS_BASE	0xffb80000
-#define CONFIG_SYS_NAND_DATA_BASE	0xffb90000
-#define CONFIG_SYS_NAND_BASE	        CONFIG_SYS_NAND_REGS_BASE
-/* The ECC size which either 512 or 1024 */
-#define CONFIG_NAND_DENALI_ECC_SIZE			(512)
-#define CONFIG_BOOT_FLASH_TYPE "nand"
-#endif /* CONFIG_NAND_DENALI */
 
 /*
  * FPGA support
@@ -598,7 +532,7 @@ CONFIG_NAND_DENALI is also defined.
 #if defined(CONFIG_NAND_DENALI)
 #define CONFIG_OCRAM_MALLOC_SIZE	(32 * 1024)
 #else
-#define CONFIG_OCRAM_MALLOC_SIZE	(8 * 1024)
+#define CONFIG_OCRAM_MALLOC_SIZE	(32 * 1024)
 #endif
 #define CONFIG_SYS_MALLOC_F_LEN		CONFIG_OCRAM_MALLOC_SIZE
 
@@ -608,9 +542,6 @@ CONFIG_NAND_DENALI is also defined.
 #define CONFIG_OCRAM_STACK_SIZE		(12 * 1024)
 #endif
 
-/* Room required on the stack for the environment data */
-#ifndef CONFIG_ENV_SIZE
-#endif
 
 
 /* Size of DRAM reserved for malloc() use */
