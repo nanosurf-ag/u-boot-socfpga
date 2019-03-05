@@ -1177,6 +1177,12 @@ static int mmc_startup(struct mmc *mmc)
 	if (ARRIA10_ES_SILICON_VER == chip_version)
 		mmc->tran_speed = 25000000;
 
+  /*
+   * HACK HACK HACK DF 2019-01-04 
+   * hardware v1.1 of the CX has issues with a higher clock
+   */
+  mmc->tran_speed = 8000000;
+  
 	mmc_set_clock(mmc, mmc->tran_speed);
 
 	/* fill in device description */
