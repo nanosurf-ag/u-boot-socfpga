@@ -6,6 +6,7 @@
 
 #include <altera.h>
 #include <common.h>
+#include <bootcount.h>
 #include <asm/io.h>
 #include <asm/arch/cff.h>
 #include <asm/arch/fpga_manager.h>
@@ -19,11 +20,11 @@
 #include <watchdog.h>
 #include <fdtdec.h>
 #include <spi_flash.h>
+#include <environment.h>
 
 DECLARE_GLOBAL_DATA_PTR;
 
 static const char *boot_flash_type = CONFIG_BOOT_FLASH_TYPE;
-static char cff_rbf_filename[25];
 
 static inline void *zalloc(size_t size)
 {
@@ -32,11 +33,27 @@ static inline void *zalloc(size_t size)
 	return p;
 }
 
+struct fpga_rbf_location
+{
+  char* part;
+  char* path;
+};
+
+static struct fpga_rbf_location fpga_rbf_locations[] = {
+    {"0:4", "/fpga/fpga.rbf"}
+  , {"0:2", "/boot/fpga.rbf"}
+  , {"0:3", "/boot/fpga.rbf"}  
+};
+
+static const int fpga_rbf_locations_size = 3;
+
 /* Local functions */
 static int cff_flash_read(struct cff_flash_info *cff_flashinfo, u32 *buffer,
 	u32 *buffer_sizebytes);
+
 static int cff_flash_preinit(struct cff_flash_info *cff_flashinfo,
 	fpga_fs_info *fpga_fsinfo, u32 *buffer, u32 *buffer_sizebytes);
+
 static int cff_flash_probe(struct cff_flash_info *cff_flashinfo)
 {
 #ifdef CONFIG_CADENCE_QSPI
@@ -58,7 +75,7 @@ static int cff_flash_probe(struct cff_flash_info *cff_flashinfo)
 	}
 
 	if (0 >= ext4fs_open(cff_flashinfo->sdmmc_flashinfo.filename)) {
-		printf("Failed open file %s .\n", cff_flashinfo->sdmmc_flashinfo.filename);
+		printf("Failed open file %s\n", cff_flashinfo->sdmmc_flashinfo.filename);
 		return -2;
 	}
 
@@ -148,58 +165,118 @@ const char *get_cff_filename(const void *fdt, int *len)
 	return cff_filename;
 }
 
-int cff_from_sdmmc_env(void)
+int cff_from_sdmmc_location(char* part, char* path)
+{   
+  int rval = -1;
+  fpga_fs_info fpga_fsinfo;  
+  
+  fpga_fsinfo.interface = "sdmmc";
+  fpga_fsinfo.filename = path;
+  fpga_fsinfo.dev_part = part;    
+  if(NULL == fpga_fsinfo.filename || NULL == fpga_fsinfo.dev_part)
+  {
+    printf("ERROR rbf filename || part emtpy \n");
+  }  
+  printf("using rbf part=\"%s\" path=\"%s\"\n", fpga_fsinfo.dev_part, fpga_fsinfo.filename);  
+      
+  if (is_early_release_fpga_config(gd->fdt_blob))
+  {
+    fpga_fsinfo.rbftype = "periph";
+  }
+  else/* monolithic rbf image */
+  {
+    fpga_fsinfo.rbftype = "combined";
+  }
+    
+  rval = cff_from_flash(&fpga_fsinfo);  
+  
+  return rval;
+}
+
+void cff_str_cleanup(char* s, int len)
 {
-	int len = 0;
-	int rval = -1;
-	fpga_fs_info fpga_fsinfo;
-	char *tmp_cff_rbf_filename = NULL;
-	tmp_cff_rbf_filename = getenv("cff_rbf_filename");
+ int i = 0;
+ while(i < len && s[i] != '\0')
+ {
+   if(s[i] == 0x0a) s[i] = '\0';
+   if(s[i] == 0x0d) s[i] = '\0';
+   i++;
+ }
+  
+}
 
-	if(NULL == tmp_cff_rbf_filename) {
-		printf("No cff_rbf_filename found in environment trying device tree\n");
-		printf("set cff_rbf_filename to change this\n");
+int cff_from_sdmmc_config(void) 
+{
+  char part[4];
+  char path[64];
+  
+  memset(part, 0, 4);
+  memset(path, 0, 64);
+  
+  int file_size = -1;
+  int rval;
+  
+  rval = fs_set_blk_dev("mmc", "0:4", FS_TYPE_EXT);
+  if(rval < 0)
+  {
+    return rval;
+  }
+  
+  file_size = ext4fs_open("/fpga/select_partition");   
+  if(file_size < 0)
+  {
+    return file_size;
+  }    
+  
+  file_size = min(file_size, 3);    
+  file_size = ext4fs_read_with_offset(part, 0, file_size);  
+  if(file_size < 0)
+  {
+    return file_size;
+  }    
+  cff_str_cleanup(part, file_size);  
+  
+  file_size = ext4fs_open("/fpga/select_file_path");
+  if(file_size < 0)
+  {
+    return file_size;
+  }    
+  
+  file_size = min(file_size, 63);  
+  file_size = ext4fs_read_with_offset(path, 0, file_size);    
+  if(file_size < 0)
+  {
+    return file_size;
+  }   
+  cff_str_cleanup(path, file_size);  
+  
+  return cff_from_sdmmc_location(part, path);
+}
 
-		const char *cff = get_cff_filename(gd->fdt_blob, &len);
-
-		if (cff && (len > 0)) {
-			fpga_fsinfo.filename = (char *)cff;
-		}
-	}
-	else {
-		len = strlen(tmp_cff_rbf_filename) +1;
-		strncpy(cff_rbf_filename, tmp_cff_rbf_filename, len);
-		fpga_fsinfo.filename = cff_rbf_filename;
-	}
-
-	printf("using rbf filename %s\n", fpga_fsinfo.filename);
-	if(NULL != fpga_fsinfo.filename)
-	{
-		mmc_initialize(gd->bd);
-
-		fpga_fsinfo.interface = "sdmmc";
-		fpga_fsinfo.dev_part = getenv("cff_devsel_partition");
-
-		if (NULL == fpga_fsinfo.dev_part) 
-                {
-			printf("No SD/MMC partition found in environment. %s \n", fpga_fsinfo.dev_part);
-			printf("set cff_devsel_partition for changing partition\n");
-			printf("Assuming 0:2.\n");
-			fpga_fsinfo.dev_part = "0:2";
-		}
-		printf("using dev_part %s\n", fpga_fsinfo.dev_part);
-
-		if (is_early_release_fpga_config(gd->fdt_blob))
-			fpga_fsinfo.rbftype = "periph";
-		else/* monolithic rbf image */
-			fpga_fsinfo.rbftype = "combined";
-
-		rval = cff_from_flash(&fpga_fsinfo);
-	}
-	else {
-		printf("ERROR fpga_fsinfo.filename) is NULL\n");
-	}
-
+int cff_from_sdmmc_env(void)
+{  
+  int idx = 0;
+  int rval = FPGA_FAIL;
+  
+  mmc_initialize(gd->bd);   
+  
+  //try to read from ext4 config  
+  rval = cff_from_sdmmc_config();
+  if(rval >= 0)
+  {
+    return rval;
+  }
+  
+  // otherwise trail and error from hardcoded defaults
+  for(idx = 0; idx < fpga_rbf_locations_size; idx++)
+  {
+    rval = cff_from_sdmmc_location(fpga_rbf_locations[idx].part, fpga_rbf_locations[idx].path);
+    if(rval >= 0)
+    {
+      return rval;
+    }
+  }
+	
 	return rval;
 }
 
@@ -222,8 +299,7 @@ int cff_flash_preinit(struct cff_flash_info *cff_flashinfo,
 
 	ret = cff_flash_probe(cff_flashinfo);
 
-	if (0 >= ret) {
-		printf("Flash probe failed ret =%u.\n", ret);
+	if (0 >= ret) {		
 		return ret;
 	}
 
@@ -339,14 +415,14 @@ int cff_from_flash(fpga_fs_info *fpga_fsinfo)
 
 	if (fpga_fsinfo->filename == NULL) {
 		printf("no [periph/core] rbf [filename/offset] specified.\n");
-		return 0;
+    return FPGA_FAIL;
 	}
 
 	if (strcmp(fpga_fsinfo->rbftype, "periph") &&
 		strcmp(fpga_fsinfo->rbftype, "combined") &&
 		strcmp(fpga_fsinfo->rbftype, "core")) {
 		printf("Unsupported FGPA raw binary type.\n");
-		return 0;
+		return FPGA_FAIL;
 	}
 
 	WATCHDOG_RESET();
