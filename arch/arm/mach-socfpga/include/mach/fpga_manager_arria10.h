@@ -59,6 +59,10 @@
 #define FPGA_SOCFPGA_A10_RBF_ENCRYPTED		0xa65d
 #define FPGA_SOCFPGA_A10_RBF_PERIPH		0x0001
 #define FPGA_SOCFPGA_A10_RBF_CORE		0x8001
+
+#define LOAD_PERIPHERAL 0
+#define LOAD_CORE 1
+#define BACKUPMODE 66
 #ifndef __ASSEMBLY__
 
 struct socfpga_fpga_manager {
@@ -128,8 +132,8 @@ int fpgamgr_wait_early_user_mode(void);
 const char *get_fpga_filename(void);
 int is_fpgamgr_early_user_mode(void);
 int socfpga_loadfs(fpga_fs_info *fpga_fsinfo, const void *buf, size_t bsize,
-		  u32 offset);
-void fpgamgr_program(const void *buf, size_t bsize, u32 offset);
+		  u32 offset, int loading_section);
+int fpgamgr_program(const void *buf, size_t bsize, u32 offset, int loading_section);
 #endif /* __ASSEMBLY__ */
 
 #endif /* _FPGA_MANAGER_ARRIA10_H_ */

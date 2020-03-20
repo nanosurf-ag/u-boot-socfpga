@@ -523,7 +523,7 @@ static void get_rbf_image_info(struct rbf_info *rbf, u16 *buffer)
 #ifdef CONFIG_FS_LOADER
 static int first_loading_rbf_to_buffer(struct udevice *dev,
 				struct fpga_loadfs_info *fpga_loadfs,
-				u32 *buffer, size_t *buffer_bsize)
+				u32 *buffer, size_t *buffer_bsize, int loading_section)
 {
 	u32 *buffer_p = (u32 *)*buffer;
 	u32 *loadable = buffer_p;
@@ -600,15 +600,13 @@ static int first_loading_rbf_to_buffer(struct udevice *dev,
 			debug("FPGA: %s\n", uname);
 
 			if (strstr(uname, "fpga-periph") &&
-				(!is_fpgamgr_early_user_mode() ||
-				is_fpgamgr_user_mode())) {
+				loading_section == LOAD_PERIPHERAL) {
 				fpga_node_name = uname;
 				printf("FPGA: Start to program ");
 				printf("peripheral/full bitstream ...\n");
 				break;
 			} else if (strstr(uname, "fpga-core") &&
-					(is_fpgamgr_early_user_mode() &&
-					!is_fpgamgr_user_mode())) {
+					loading_section == LOAD_CORE) {
 				fpga_node_name = uname;
 				printf("FPGA: Start to program core ");
 				printf("bitstream ...\n");
@@ -747,11 +745,11 @@ static int subsequent_loading_rbf_to_buffer(struct udevice *dev,
 }
 
 int socfpga_loadfs(fpga_fs_info *fpga_fsinfo, const void *buf, size_t bsize,
-			u32 offset)
+			u32 offset, int loading_section)
 {
 	struct fpga_loadfs_info fpga_loadfs;
 	struct udevice *dev;
-	int status, ret, size;
+	int status, ret, size, ret_backup;
 	u32 buffer = (uintptr_t)buf;
 	size_t buffer_sizebytes = bsize;
 	size_t buffer_sizebytes_ori = bsize;
@@ -796,18 +794,36 @@ int socfpga_loadfs(fpga_fs_info *fpga_fsinfo, const void *buf, size_t bsize,
 	fpga_loadfs.offset = offset;
 
 	printf("FPGA: Checking FPGA configuration setting ...\n");
+	printf("Load %s ...\n", fpga_loadfs.fpga_fsinfo->filename);
 
 	/*
 	 * Note: Both buffer and buffer_sizebytes values can be altered by
 	 * function below.
 	 */
 	ret = first_loading_rbf_to_buffer(dev, &fpga_loadfs, &buffer,
-					   &buffer_sizebytes);
-	if (ret == 1) {
-		printf("FPGA: Skipping configuration ...\n");
-		return 0;
-	} else if (ret) {
-		return ret;
+					   &buffer_sizebytes, loading_section);
+
+	if (ret != 0)
+	{
+		/* If .rbf file is corrupted switch to backup */
+		fpga_loadfs.fpga_fsinfo->filename = "fit_backup.itb";
+		printf("Loading not successful. Switched to Backup. Errorcode: %d\n", ret);
+		printf("Load %s ...\n", fpga_loadfs.fpga_fsinfo->filename);
+
+		ret = first_loading_rbf_to_buffer(dev, &fpga_loadfs, &buffer,
+					   &buffer_sizebytes, LOAD_PERIPHERAL);
+		
+		if (ret == 1) {
+			printf("FPGA: Skipping configuration ...\n");
+			return 0;
+		} else if (ret && ret != BACKUPMODE) {
+			return ret;
+		}
+		ret_backup = BACKUPMODE;
+
+	}
+	else {
+		ret_backup = 0;
 	}
 
 	if (fpga_loadfs.rbfinfo.section == core_section &&
@@ -887,16 +903,19 @@ int socfpga_loadfs(fpga_fs_info *fpga_fsinfo, const void *buf, size_t bsize,
 		return -ENOEXEC;
 	}
 
-	return (int)total_sizeof_image;
+	return ret_backup;
 }
 
-void fpgamgr_program(const void *buf, size_t bsize, u32 offset)
+int fpgamgr_program(const void *buf, size_t bsize, u32 offset, int loading_section)
 {
+	int ret;
 	fpga_fs_info fpga_fsinfo;
 
 	fpga_fsinfo.filename = get_fpga_filename();
 
-	socfpga_loadfs(&fpga_fsinfo, buf, bsize, offset);
+	ret = socfpga_loadfs(&fpga_fsinfo, buf, bsize, offset, loading_section);
+
+	return ret;
 }
 #endif
 

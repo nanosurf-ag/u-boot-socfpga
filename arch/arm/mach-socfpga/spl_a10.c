@@ -73,6 +73,7 @@ u32 spl_boot_mode(const u32 boot_device)
 
 void spl_board_init(void)
 {
+	int ret;
 	ALLOC_CACHE_ALIGN_BUFFER(char, buf, FPGA_BUFSIZ);
 
 	/* enable console uart printing */
@@ -81,27 +82,16 @@ void spl_board_init(void)
 
 	arch_early_init_r();
 
-	/* If the full FPGA is already loaded, ie.from EPCQ, config fpga pins */
-	if (is_fpgamgr_user_mode()) {
-		int ret = config_pins(gd->fdt_blob, "shared");
+	ret = fpgamgr_program(buf, FPGA_BUFSIZ, 0, LOAD_PERIPHERAL);
 
-		if (ret)
-			return;
-
-		ret = config_pins(gd->fdt_blob, "fpga");
-		if (ret)
-			return;
-	} else if (!is_fpgamgr_early_user_mode()) {
-		/* Program IOSSM(early IO release) or full FPGA */
-		fpgamgr_program(buf, FPGA_BUFSIZ, 0);
-	}
-
+	/* Ony load Core Image if SPL loaded Peripheral succesfully. 
+	   Ignore also core image if in Backup Mode */
+	if (ret == 0)
+		fpgamgr_program(buf, FPGA_BUFSIZ, 0, LOAD_CORE);
+	
 	/* If the IOSSM/full FPGA is already loaded, start DDR */
 	if (is_fpgamgr_early_user_mode() || is_fpgamgr_user_mode())
 		ddr_calibration_sequence();
-
-	if (!is_fpgamgr_user_mode())
-		fpgamgr_program(buf, FPGA_BUFSIZ, 0);
 }
 
 void board_init_f(ulong dummy)

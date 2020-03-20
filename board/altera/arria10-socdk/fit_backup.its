@@ -11,28 +11,19 @@
 	#address-cells = <1>;
 
 	images {
-		fpga-periph-1 {
+		fpga-periphb-1 {
 			description = "FPGA peripheral bitstream";
 			data = /incbin/("../../../cx.periph.rbf");
 			type = "fpga";
 			arch = "arm";
 			compression = "none";
 		};
-        
-		fpga-core-1 {
-			description = "FPGA peripheral bitstream";
-			data = /incbin/("../../../cx.core.rbf");
-			type = "fpga";
-			arch = "arm";
-			compression = "none";
-		};
-	};
 
 	configurations {
 		default = "config-1";
 		config-1 {
 			description = "Boot with FPGA early IO release config";
-			fpga = "fpga-periph-1", "fpga-core-1";
+			fpga = "fpga-periphb-1";
 		};
 	};
 };
