@@ -238,7 +238,7 @@ static int spl_mmc_do_fs_boot(struct spl_image_info *spl_image, struct mmc *mmc)
 {
 	int err = -ENOSYS;
 
-#ifdef CONFIG_SPL_FS_FAT
+#if defined(CONFIG_SPL_FS_FAT) && !defined(CONFIG_SPL_FS_EXT4)
 	if (!spl_start_uboot()) {
 		err = spl_load_image_fat_os(spl_image, mmc_get_blk_desc(mmc),
 			CONFIG_SYS_MMCSD_FS_BOOT_PARTITION);
