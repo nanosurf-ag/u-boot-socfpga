@@ -444,7 +444,15 @@ static int initr_env(void)
 
 	/* Initialize from environment */
 	load_addr = env_get_ulong("loadaddr", 16, load_addr);
-
+	/* Copy backupmode value to environment */
+	if(gd->backupmode)
+	{
+		env_set("backupmode", "y");
+	}
+	else 
+	{
+		env_set("backupmode", "n");
+	}
 	return 0;
 }
 

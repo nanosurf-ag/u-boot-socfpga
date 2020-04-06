@@ -25,6 +25,7 @@
 
 typedef struct global_data {
 	bd_t *bd;
+	int backupmode;
 	unsigned long flags;
 	unsigned int baudrate;
 	unsigned long cpu_clk;		/* CPU clock in Hz!		*/

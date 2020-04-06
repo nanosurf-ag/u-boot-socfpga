@@ -99,15 +99,18 @@ ulong board_init_f_alloc_reserve(ulong top)
 void board_init_f_init_reserve(ulong base)
 {
 	struct global_data *gd_ptr;
-
+	int temp;
 	/*
 	 * clear GD entirely and set it up.
 	 * Use gd_ptr, as gd may not be properly set yet.
 	 */
 
 	gd_ptr = (struct global_data *)base;
-	/* zero the area */
+
+	/* zero the area, but restore backupvalue */
+	temp = gd_ptr->backupmode;
 	memset(gd_ptr, '\0', sizeof(*gd));
+	gd_ptr->backupmode = temp;
 	/* set GD unless architecture did it already */
 #if !defined(CONFIG_ARM)
 	arch_setup_gd(gd_ptr);

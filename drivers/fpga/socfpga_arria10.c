@@ -809,6 +809,7 @@ int socfpga_loadfs(fpga_fs_info *fpga_fsinfo, const void *buf, size_t bsize,
 		fpga_loadfs.fpga_fsinfo->filename = "fit_backup.itb";
 		printf("Loading not successful. Switched to Backup. Errorcode: %d\n", ret);
 		printf("Load %s ...\n", fpga_loadfs.fpga_fsinfo->filename);
+		gd->backupmode = 1;
 
 		ret = first_loading_rbf_to_buffer(dev, &fpga_loadfs, &buffer,
 					   &buffer_sizebytes, LOAD_PERIPHERAL);

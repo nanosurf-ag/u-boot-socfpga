@@ -82,6 +82,9 @@ void spl_board_init(void)
 
 	arch_early_init_r();
 
+	/* set backupmode value to default value */
+	gd->backupmode = 0;
+
 	ret = fpgamgr_program(buf, FPGA_BUFSIZ, 0, LOAD_PERIPHERAL);
 
 	/* Ony load Core Image if SPL loaded Peripheral succesfully. 
