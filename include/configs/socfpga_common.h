@@ -164,6 +164,19 @@ unsigned int cm_get_qspi_controller_clk_hz(void);
 /*
  * U-Boot environment
  */
+
+/*
+ Size     128KiB    =   0x20000
+ Offset 1   2MiB    =  0x200000
+ Offset 2   3.75MiB =  0x3C0000
+*/
+#define CONFIG_ENV_SIZE             0x20000
+#define CONFIG_ENV_OFFSET          0x200000
+#define CONFIG_ENV_OFFSET_REDUND   0x3C0000
+#define CONFIG_SYS_MMC_ENV_DEV            0
+#define CONFIG_SYS_MMC_ENV_PART           0
+
+
 #if !defined(CONFIG_ENV_SIZE)
 #define CONFIG_ENV_SIZE			(64 * 1024)
 #endif
