@@ -166,13 +166,13 @@ unsigned int cm_get_qspi_controller_clk_hz(void);
  */
 
 /*
- Size     128KiB    =   0x20000
- Offset 1   2MiB    =  0x200000
- Offset 2   3.75MiB =  0x3C0000
+ Size        128KiB    =   0x20000
+ Offset 1      8MiB    =  0x800000
+ Offset 2  11.75MiB    =  0xAC0000
 */
 #define CONFIG_ENV_SIZE             0x20000
-#define CONFIG_ENV_OFFSET          0x200000
-#define CONFIG_ENV_OFFSET_REDUND   0x3C0000
+#define CONFIG_ENV_OFFSET          0x800000
+#define CONFIG_ENV_OFFSET_REDUND   0xAC0000
 #define CONFIG_SYS_MMC_ENV_DEV            0
 #define CONFIG_SYS_MMC_ENV_PART           0
 
