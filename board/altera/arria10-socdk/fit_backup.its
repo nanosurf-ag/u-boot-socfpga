@@ -13,7 +13,7 @@
 	images {
 		fpga-periph-1 {
 			description = "FPGA peripheral bitstream";
-			data = /incbin/("../../../../cx.periph.rbf");
+			data = /incbin/("../../../cx.periph.rbf");
 			type = "fpga";
 			arch = "arm";
 			compression = "none";
