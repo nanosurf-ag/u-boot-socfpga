@@ -43,7 +43,11 @@
 	num-slots = <1>;
 	cap-sd-highspeed;
 	broken-cd;
-	bus-width = <4>;
+	bus-width = <8>;
+  bank-width = <2>;
+  device-width = <1>;
+  supports-highspeed;
+  clock-freq-min-max = <800000 50000000>;  
 };
 
 &eccmgr {
