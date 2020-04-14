@@ -7,7 +7,7 @@
 / {
 	#address-cells = <1>;
 	#size-cells = <1>;
-	model = "SOCFPGA Arria10 Dev Kit";	/* Bootloader setting: uboot.model */
+	model = "nanosurf CX";	/* Bootloader setting: uboot.model */
 
 
 	/* Clock sources */
