@@ -288,18 +288,24 @@ unsigned int cm_get_qspi_controller_clk_hz(void);
 
 #ifndef CONFIG_EXTRA_ENV_SETTINGS
 #define CONFIG_EXTRA_ENV_SETTINGS \
-	"fdtfile=" CONFIG_DEFAULT_FDT_FILE "\0" \
-	"bootm_size=0xa000000\0" \
-	"kernel_addr_r="__stringify(CONFIG_SYS_LOAD_ADDR)"\0" \
-	"fdt_addr_r=0x02000000\0" \
-	"scriptaddr=0x02100000\0" \
-	"pxefile_addr_r=0x02200000\0" \
-	"ramdisk_addr_r=0x02300000\0" \
-	"socfpga_legacy_reset_compat=1\0" \
-	BOOTENV
+  "autoload=n\0" \
+  "backupmode=n\0" \
+  "baudrate=115200\0" \
+  "socfpga_legacy_reset_compat=1\0" \
+  "bootdelay=0\0" \
+  "netargs=setenv bootargs console=ttyS0,115200 rw rootwait root=/dev/ram initrd=0x12000000 ramdisk_size=10000000\0" \
+  "netboot=run netargs; bridge enable; tftp 0x10000000 uImage; tftp 0x11000000 cx.dtb; tftp 0x12000000 rootfs; bootm 0x10000000 0x12000000 0x11000000;\0" \
+  "bootcmd=run netboot;\0" \
+  "ipaddr=192.168.100.20\0" \
+  "netmask=255.255.255.0\0" \
+  "serverip=192.168.100.11\0" \
+  "ethaddr=4e:53:46:ca:ca:ca\0" \
+  "nsf_default_ipaddr=192.168.100.10\0" \
+  "nsf_default_netmask=255.255.255.0\0" \
+  "nsf_default_serverip=192.168.100.1\0"
 
-#endif
+#endif  /* CONFIG_EXTRA_ENV_SETTINGS */
 
-#endif
+#endif  /* CONFIG_SPL_BUILD */
 
 #endif	/* __CONFIG_SOCFPGA_COMMON_H__ */
