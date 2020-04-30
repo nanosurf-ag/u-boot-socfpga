@@ -293,16 +293,17 @@ unsigned int cm_get_qspi_controller_clk_hz(void);
   "baudrate=115200\0" \
   "socfpga_legacy_reset_compat=1\0" \
   "bootdelay=0\0" \
-  "netargs=setenv bootargs console=ttyS0,115200 rw rootwait root=/dev/ram initrd=0x12000000 ramdisk_size=10000000\0" \
-  "netboot=run netargs; bridge enable; tftp 0x10000000 uImage; tftp 0x11000000 cx.dtb; tftp 0x12000000 rootfs; bootm 0x10000000 0x12000000 0x11000000;\0" \
-  "bootcmd=run netboot;\0" \
-  "ipaddr=192.168.100.20\0" \
-  "netmask=255.255.255.0\0" \
-  "serverip=192.168.100.11\0" \
+  "bootcmd=ext4load mmc 0:2 0x40000000 /u-boot.scr; source 0x40000000;\0" \
   "ethaddr=4e:53:46:ca:ca:ca\0" \
+  "nsf_serial_number=91-00-000\0" \
+  "nsf_custom_name=cx controller\0" \
   "nsf_default_ipaddr=192.168.100.10\0" \
   "nsf_default_netmask=255.255.255.0\0" \
-  "nsf_default_serverip=192.168.100.1\0"
+  "nsf_default_serverip=192.168.100.1\0" \
+  "nsf_use_static=0\0" \
+  "nsf_static_ipaddr=192.168.100.10\0" \
+  "nsf_static_netmask=255.255.255.0\0" \
+  "nsf_static_gatewayip=192.168.100.1\0"
 
 #endif  /* CONFIG_EXTRA_ENV_SETTINGS */
 
