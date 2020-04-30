@@ -806,7 +806,7 @@ int socfpga_loadfs(fpga_fs_info *fpga_fsinfo, const void *buf, size_t bsize,
 	if (ret != 0)
 	{
 		/* If .rbf file is corrupted switch to backup */
-		fpga_loadfs.fpga_fsinfo->filename = "fit_backup.itb";
+		fpga_loadfs.fpga_fsinfo->filename = "fpga_backup.itb";
 		printf("Loading not successful. Switched to Backup. Errorcode: %d\n", ret);
 		printf("Load %s ...\n", fpga_loadfs.fpga_fsinfo->filename);
 		gd->backupmode = 1;

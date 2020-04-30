@@ -34,7 +34,7 @@
 
 &fpga_mgr {
 	u-boot,dm-pre-reloc;
-	altr,bitstream = "fit_spl_fpga.itb";
+	altr,bitstream = "fpga.itb";
 };
 
 &mmc {
