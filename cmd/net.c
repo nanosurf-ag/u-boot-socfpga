@@ -13,6 +13,19 @@
 
 static int netboot_common(enum proto_t, cmd_tbl_t *, int, char * const []);
 
+#ifdef CONFIG_CMD_NSFBOOTP
+static int do_nsfbootp(cmd_tbl_t *cmdtp, int flag, int argc, char * const argv[])
+{
+	return netboot_common(NSFBOOTP, cmdtp, argc, argv);
+}
+
+U_BOOT_CMD(
+	nsfbootp,	3,	1,	do_nsfbootp,
+	"boot image via network using custom Nanosurf BOOTP/TFTP protocol",
+	"[loadAddress] [[hostIPaddr:]bootfilename]"
+);
+#endif
+
 #ifdef CONFIG_CMD_BOOTP
 static int do_bootp(cmd_tbl_t *cmdtp, int flag, int argc, char * const argv[])
 {

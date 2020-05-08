@@ -16,6 +16,13 @@
  * Also, we support ARP internally. Depending on available data,
  * these interact as follows:
  *
+ * NSFBOOTP:
+ *
+ *	Prerequisites:	- own ethernet address
+ *	We want:	- TFTP server IP address
+ *			- name of bootfile
+ *	Next step:	ARP
+ *
  * BOOTP:
  *
  *	Prerequisites:	- own ethernet address
@@ -103,6 +110,7 @@
 #include <linux/compiler.h>
 #include "arp.h"
 #include "bootp.h"
+#include "nsfbootp.h"
 #include "cdp.h"
 #if defined(CONFIG_CMD_DNS)
 #include "dns.h"
@@ -479,6 +487,14 @@ restart:
 			net_ip.s_addr = 0;
 			bootp_request();
 			break;
+
+#if defined(CONFIG_CMD_NSFBOOTP)
+		case NSFBOOTP:
+			nsfbootp_reset();
+/*			net_ip.s_addr = 0; */
+			nsfbootp_request();
+			break;
+#endif
 
 #if defined(CONFIG_CMD_RARP)
 		case RARP:
@@ -1384,6 +1400,7 @@ common:
 	case RARP:
 #endif
 	case BOOTP:
+	case NSFBOOTP:
 	case CDP:
 	case DHCP:
 	case LINKLOCAL:

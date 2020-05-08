@@ -8,6 +8,7 @@
 obj-y += checksum.o
 obj-$(CONFIG_NET)      += arp.o
 obj-$(CONFIG_CMD_BOOTP) += bootp.o
+obj-$(CONFIG_CMD_NSFBOOTP) += nsfbootp.o
 obj-$(CONFIG_CMD_CDP)  += cdp.o
 obj-$(CONFIG_CMD_DNS)  += dns.o
 ifdef CONFIG_DM_ETH
