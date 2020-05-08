@@ -49,9 +49,11 @@ unsigned int	nsfbootp_num_ids;
 int		nsfbootp_try;
 ulong		nsfbootp_start;
 ulong		nsfbootp_timeout;
-char net_nis_domain[32] = {0,}; /* Our NIS domain */
-char net_hostname[32] = {0,}; /* Our hostname */
-char net_root_path[64] = {0,}; /* Our bootpath */
+
+//Reusing from bootp.c, so no need to define it here
+// external char net_nis_domain[32] = {0,}; /* Our NIS domain */
+// external char net_hostname[32] = {0,}; /* Our hostname */
+// external char net_root_path[64] = {0,}; /* Our bootpath */
 
 static void bootp_add_id(ulong id)
 {
@@ -148,8 +150,6 @@ static int truncate_sz(const char *name, int maxlen, int curlen)
 	}
 	return curlen;
 }
-
-#if !defined(CONFIG_CMD_DHCP)
 
 static void bootp_process_vendor_field(u8 *ext)
 {
@@ -340,7 +340,6 @@ static void bootp_handler(uchar *pkt, unsigned dest, struct in_addr sip,
 
 	net_auto_load();
 }
-#endif
 
 /*
  *	Timeout on BOOTP/DHCP request.
@@ -392,15 +391,14 @@ static int bootp_extended(u8 *e)
 	 * or "Unkown" if not available */
         nsfbootp_vend_payload = env_get("nsfbootp_vend_payload");
         if (!nsfbootp_vend_payload) {
-		nsfbootp_vend_payload = "Unknown";
+		        nsfbootp_vend_payload = "Unknown";
         }
         int nsfbootp_vend_payload_len = max(strlen(nsfbootp_vend_payload), 63);
-        memcpy(e, hostname, hostnamelen);
-        e += hostnamelen;
+        memcpy(e, nsfbootp_vend_payload, nsfbootp_vend_payload_len);
+        e += nsfbootp_vend_payload_len;
 
 	return e - start;
 }
-#endif
 
 void nsfbootp_reset(void)
 {
@@ -452,7 +450,7 @@ void nsfbootp_request(void)
 	 */
 	bp->bp_secs = htons(get_timer(nsfbootp_start) / 1000);
 	zero_ip.s_addr = 0;
-	net_write_ip(&bp->bp_ciaddr, &net_ip);
+	net_write_ip(&bp->bp_ciaddr, net_ip);
 	net_write_ip(&bp->bp_yiaddr, zero_ip);
 	net_write_ip(&bp->bp_siaddr, zero_ip);
 	net_write_ip(&bp->bp_giaddr, zero_ip);

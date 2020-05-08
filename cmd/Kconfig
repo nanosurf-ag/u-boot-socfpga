@@ -1152,6 +1152,12 @@ menuconfig CMD_NET
 
 if CMD_NET
 
+config CMD_NSFBOOTP
+	bool "nsfbootp"
+	default y
+	help
+	  nsfbootp - boot image via network using BOOTP/TFTP protocol from nanosurf
+
 config CMD_BOOTP
 	bool "bootp"
 	default y
