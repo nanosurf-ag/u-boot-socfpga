@@ -82,12 +82,20 @@ void spl_board_init(void)
 	gd->backupmode = 0;
 
 	ret = fpgamgr_program(buf, FPGA_BUFSIZ, 0, LOAD_PERIPHERAL);
-
+	
 	/* Ony load Core Image if SPL loaded Peripheral succesfully. 
 	   Ignore also core image if in Backup Mode */
 	if (ret == 0)
-		fpgamgr_program(buf, FPGA_BUFSIZ, 0, LOAD_CORE);
-	
+	{
+		ret = fpgamgr_program(buf, FPGA_BUFSIZ, 0, LOAD_CORE);
+	}
+
+	/* Catch errors occuring while loading the data part of .rbf.
+	   Force switching to backup. */
+	if (ret < 0)
+	{
+		fpgamgr_program(buf, FPGA_BUFSIZ, 0, LOAD_BACKUP);
+	}
 	/* If the IOSSM/full FPGA is already loaded, start DDR */
 	if (is_fpgamgr_early_user_mode() || is_fpgamgr_user_mode())
 		ddr_calibration_sequence();

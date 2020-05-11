@@ -62,6 +62,7 @@
 
 #define LOAD_PERIPHERAL 0
 #define LOAD_CORE 1
+#define LOAD_BACKUP 2
 #define BACKUPMODE 66
 #ifndef __ASSEMBLY__
 

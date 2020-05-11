@@ -794,20 +794,29 @@ int socfpga_loadfs(fpga_fs_info *fpga_fsinfo, const void *buf, size_t bsize,
 	fpga_loadfs.offset = offset;
 
 	printf("FPGA: Checking FPGA configuration setting ...\n");
-	printf("Load %s ...\n", fpga_loadfs.fpga_fsinfo->filename);
 
 	/*
 	 * Note: Both buffer and buffer_sizebytes values can be altered by
 	 * function below.
 	 */
-	ret = first_loading_rbf_to_buffer(dev, &fpga_loadfs, &buffer,
-					   &buffer_sizebytes, loading_section);
+
+	/* Possibility to force loading of backup */
+	if (loading_section == LOAD_BACKUP)
+	{
+		ret = -1;
+	}
+	else 
+	{
+		printf("Load %s ...\n", fpga_loadfs.fpga_fsinfo->filename);
+		ret = first_loading_rbf_to_buffer(dev, &fpga_loadfs, &buffer,
+					   	&buffer_sizebytes, loading_section);
+	}
 
 	if (ret != 0)
 	{
 		/* If .rbf file is corrupted switch to backup */
 		fpga_loadfs.fpga_fsinfo->filename = "fpga_backup.itb";
-		printf("Loading not successful. Switched to Backup. Errorcode: %d\n", ret);
+		printf("Loading not successful. Switching to Backup. \n", ret);
 		printf("Load %s ...\n", fpga_loadfs.fpga_fsinfo->filename);
 		gd->backupmode = 1;
 
