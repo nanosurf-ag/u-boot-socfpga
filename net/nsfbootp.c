@@ -100,6 +100,7 @@ static int check_reply_packet(uchar *pkt, unsigned dest, unsigned src,
 	else if (memcmp(bp->bp_chaddr, net_ethaddr, HWL_ETHER) != 0)
 		retval = -7;
 
+	sprintf("Filtering pkt retval: %d\n", retval);
 	debug("Filtering pkt = %d\n", retval);
 
 	return retval;
@@ -311,6 +312,7 @@ static void bootp_handler(uchar *pkt, unsigned dest, struct in_addr sip,
 {
 	struct nsfbootp_hdr *bp;
 
+	printf("got BOOTP packet (src=%d, dst=%d, len=%d, want_len=%zu)\n", src, dest, len, sizeof(struct nsfbootp_hdr));
 	debug("got BOOTP packet (src=%d, dst=%d, len=%d want_len=%zu)\n",
 	      src, dest, len, sizeof(struct nsfbootp_hdr));
 
@@ -397,7 +399,10 @@ static int bootp_extended(u8 *e)
         memcpy(e, nsfbootp_vend_payload, nsfbootp_vend_payload_len);
         e += nsfbootp_vend_payload_len;
 
-	return e - start;
+	/* Set rest of vend part to 0 */
+	memset(e, 0, 64 - nsfbootp_vend_payload_len);
+
+	return 64; /* e - start; */
 }
 
 void nsfbootp_reset(void)
@@ -405,7 +410,7 @@ void nsfbootp_reset(void)
 	nsfbootp_num_ids = 0;
 	nsfbootp_try = 0;
 	nsfbootp_start = get_timer(0);
-	nsfbootp_timeout = 500; /* 500ms retry interval */
+	nsfbootp_timeout = 1000; /* 1000ms retry interval */
 }
 
 void nsfbootp_request(void)
@@ -420,7 +425,7 @@ void nsfbootp_request(void)
 
 	bootstage_mark_name(BOOTSTAGE_ID_BOOTP_START, "nsfbootp_start");
 
-	printf("BOOTP broadcast %d\n", ++nsfbootp_try);
+	printf("NSFBOOTP broadcast %d\n", ++nsfbootp_try);
 	pkt = net_tx_packet;
 	memset((void *)pkt, 0, PKTSIZE);
 
