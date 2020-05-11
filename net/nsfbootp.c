@@ -37,8 +37,8 @@
 #endif
 #define TIMEOUT_MS	((3 + (TIMEOUT_COUNT * 5)) * 1000)
 
-#define PORT_NSFBOOTPS	30067		/* NSFBOOTP server UDP port */
-#define PORT_NSFBOOTPC	30068		/* NSFBOOTP client UDP port */
+#define PORT_NSFBOOTPS	33067		/* NSFBOOTP server UDP port */
+#define PORT_NSFBOOTPC	33068		/* NSFBOOTP client UDP port */
 
 #ifndef CONFIG_BOOTP_ID_CACHE_SIZE
 #define CONFIG_BOOTP_ID_CACHE_SIZE 4
