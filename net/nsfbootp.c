@@ -100,7 +100,7 @@ static int check_reply_packet(uchar *pkt, unsigned dest, unsigned src,
 	else if (memcmp(bp->bp_chaddr, net_ethaddr, HWL_ETHER) != 0)
 		retval = -7;
 
-	sprintf("Filtering pkt retval: %d\n", retval);
+	printf("Filtering pkt retval: %d\n", retval);
 	debug("Filtering pkt = %d\n", retval);
 
 	return retval;
