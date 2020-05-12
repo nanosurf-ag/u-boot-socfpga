@@ -100,7 +100,6 @@ static int check_reply_packet(uchar *pkt, unsigned dest, unsigned src,
 	else if (memcmp(bp->bp_chaddr, net_ethaddr, HWL_ETHER) != 0)
 		retval = -7;
 
-	printf("Filtering pkt retval: %d\n", retval);
 	debug("Filtering pkt = %d\n", retval);
 
 	return retval;
@@ -312,7 +311,6 @@ static void bootp_handler(uchar *pkt, unsigned dest, struct in_addr sip,
 {
 	struct nsfbootp_hdr *bp;
 
-	printf("got BOOTP packet (src=%d, dst=%d, len=%d, want_len=%zu)\n", src, dest, len, sizeof(struct nsfbootp_hdr));
 	debug("got BOOTP packet (src=%d, dst=%d, len=%d want_len=%zu)\n",
 	      src, dest, len, sizeof(struct nsfbootp_hdr));
 
