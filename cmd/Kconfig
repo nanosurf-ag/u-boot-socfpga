@@ -1257,6 +1257,12 @@ config CMD_TFTPBOOT
 	help
 	  tftpboot - boot image via network using TFTP protocol
 
+config CMD_TFTP_PORT
+	bool "tftp port"
+	depends on CMD_TFTPBOOT
+	help
+	  TFTP port takes port numbers from env
+
 config CMD_TFTPPUT
 	bool "tftp put"
 	depends on CMD_TFTPBOOT
