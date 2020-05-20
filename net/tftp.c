@@ -19,6 +19,8 @@
 
 DECLARE_GLOBAL_DATA_PTR;
 
+#define CONFIG_TFTP_PORT
+
 /* Well known TFTP port # */
 #define WELL_KNOWN_PORT	69
 /* Millisecs to timeout for lost pkt */
@@ -802,4 +804,3 @@ void tftp_start_server(void)
 	memset(net_server_ethaddr, 0, 6);
 }
 #endif /* CONFIG_CMD_TFTPSRV */
-
