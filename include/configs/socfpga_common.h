@@ -294,7 +294,6 @@ unsigned int cm_get_qspi_controller_clk_hz(void);
   "socfpga_legacy_reset_compat=1\0" \
   "bootdelay=0\0" \
   "bootcmd=ext4load mmc 0:2 0x40000000 /u-boot.scr; source 0x40000000;\0" \
-  "ethaddr=4e:53:46:ca:ca:ca\0" \
   "tftpdstp=33069\0" \
   "nsfbootp_vend_payload=91-00-000 cx-controller\0" \
   "nsf_serial_number=91-00-000\0" \
