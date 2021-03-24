@@ -84,7 +84,8 @@
 #ifdef CONFIG_CMD_NET
 #define CONFIG_DW_ALTDESCRIPTOR
 #endif
-
+#define PHY_ANEG_TIMEOUT	12000
+#define CONFIG_NET_RETRY_COUNT  1
 /*
  * FPGA Driver
  */
