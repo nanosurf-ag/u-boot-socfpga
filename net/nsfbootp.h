@@ -1,5 +1,5 @@
 /*
- *	Copyied from bootp.h, edit for Nanosurf AG made by Adrian Rudin.
+ *	Copyied from bootp.h, edit for Nanosurf AG made by Adrian Rudin, Daniel Friedrich
  *
  *	Copyright 1994, 1995, 2000 Neil Russell.
  *	(See License)
@@ -16,7 +16,7 @@
 /**********************************************************************/
 
 /*
- *	BOOTP header.
+ *	NSFBOOTP header.
  */
 #define NSFOPT_FIELD_SIZE 64
 
@@ -48,13 +48,6 @@ struct nsfbootp_hdr {
 /*
  *	Global functions and variables.
  */
-
-/* bootp.c */
-extern u32	nsfbootp_id;		/* ID of cur BOOTP request	*/
-extern int	nsfbootp_try;
-
-
-/* Send a BOOTP request */
 void nsfbootp_reset(void);
 void nsfbootp_request(void);
 

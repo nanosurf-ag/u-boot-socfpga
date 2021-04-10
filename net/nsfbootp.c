@@ -14,28 +14,7 @@
 #include <net.h>
 #include <net/tftp.h>
 #include "nsfbootp.h"
-#ifdef CONFIG_LED_STATUS
-#include <status_led.h>
-#endif
 
-#define BOOTP_VENDOR_MAGIC	0x63825363	/* RFC1048 Magic Cookie */
-
-/*
- * The timeout for the initial BOOTP/DHCP request used to be described by a
- * counter of fixed-length timeout periods. TIMEOUT_COUNT represents
- * that counter
- *
- * Now that the timeout periods are variable (exponential backoff and retry)
- * we convert the timeout count to the absolute time it would have take to
- * execute that many retries, and keep sending retry packets until that time
- * is reached.
- */
-#ifndef CONFIG_NET_RETRY_COUNT
-# define TIMEOUT_COUNT	5		/* # of timeouts before giving up */
-#else
-# define TIMEOUT_COUNT	(CONFIG_NET_RETRY_COUNT)
-#endif
-#define TIMEOUT_MS	((3 + (TIMEOUT_COUNT * 5)) * 1000)
 
 #define PORT_NSFBOOTPS	33067		/* NSFBOOTP server UDP port */
 #define PORT_NSFBOOTPC	33068		/* NSFBOOTP client UDP port */
@@ -110,13 +89,8 @@ static int check_reply_packet(uchar *pkt, unsigned dest, unsigned src,
  */
 static void store_net_params(struct nsfbootp_hdr *bp)
 {
-#if !defined(CONFIG_BOOTP_SERVERIP)
 	struct in_addr tmp_ip;
 	bool overwrite_serverip = true;
-
-#if defined(CONFIG_BOOTP_PREFER_SERVERIP)
-	overwrite_serverip = false;
-#endif
 
 	net_copy_ip(&tmp_ip, &bp->bp_siaddr);
 	if (tmp_ip.s_addr != 0 && (overwrite_serverip || !net_server_ip.s_addr))
@@ -136,171 +110,9 @@ static void store_net_params(struct nsfbootp_hdr *bp)
 	 */
 	if (*net_boot_file_name)
 		env_set("bootfile", net_boot_file_name);
-#endif
+
 	/* Don't set IP from nsf bootp reply, this could be used for static IP push */
 	/* net_copy_ip(&net_ip, &bp->bp_yiaddr); */
-}
-
-static int truncate_sz(const char *name, int maxlen, int curlen)
-{
-	if (curlen >= maxlen) {
-		printf("*** WARNING: %s is too long (%d - max: %d)"
-			" - truncated\n", name, curlen, maxlen);
-		curlen = maxlen - 1;
-	}
-	return curlen;
-}
-
-static void bootp_process_vendor_field(u8 *ext)
-{
-	int size = *(ext + 1);
-
-	debug("[BOOTP] Processing extension %d... (%d bytes)\n", *ext,
-	      *(ext + 1));
-
-	net_boot_file_expected_size_in_blocks = 0;
-
-	switch (*ext) {
-		/* Fixed length fields */
-	case 1:			/* Subnet mask */
-		if (net_netmask.s_addr == 0)
-			net_copy_ip(&net_netmask, (struct in_addr *)(ext + 2));
-		break;
-	case 2:			/* Time offset - Not yet supported */
-		break;
-		/* Variable length fields */
-	case 3:			/* Gateways list */
-		if (net_gateway.s_addr == 0)
-			net_copy_ip(&net_gateway, (struct in_addr *)(ext + 2));
-		break;
-	case 4:			/* Time server - Not yet supported */
-		break;
-	case 5:			/* IEN-116 name server - Not yet supported */
-		break;
-	case 6:
-		if (net_dns_server.s_addr == 0)
-			net_copy_ip(&net_dns_server,
-				    (struct in_addr *)(ext + 2));
-#if defined(CONFIG_BOOTP_DNS2)
-		if ((net_dns_server2.s_addr == 0) && (size > 4))
-			net_copy_ip(&net_dns_server2,
-				    (struct in_addr *)(ext + 2 + 4));
-#endif
-		break;
-	case 7:			/* Log server - Not yet supported */
-		break;
-	case 8:			/* Cookie/Quote server - Not yet supported */
-		break;
-	case 9:			/* LPR server - Not yet supported */
-		break;
-	case 10:		/* Impress server - Not yet supported */
-		break;
-	case 11:		/* RPL server - Not yet supported */
-		break;
-	case 12:		/* Host name */
-		if (net_hostname[0] == 0) {
-			size = truncate_sz("Host Name",
-				sizeof(net_hostname), size);
-			memcpy(&net_hostname, ext + 2, size);
-			net_hostname[size] = 0;
-		}
-		break;
-	case 13:		/* Boot file size */
-		if (size == 2)
-			net_boot_file_expected_size_in_blocks =
-				ntohs(*(ushort *)(ext + 2));
-		else if (size == 4)
-			net_boot_file_expected_size_in_blocks =
-				ntohl(*(ulong *)(ext + 2));
-		break;
-	case 14:		/* Merit dump file - Not yet supported */
-		break;
-	case 15:		/* Domain name - Not yet supported */
-		break;
-	case 16:		/* Swap server - Not yet supported */
-		break;
-	case 17:		/* Root path */
-		if (net_root_path[0] == 0) {
-			size = truncate_sz("Root Path",
-				sizeof(net_root_path), size);
-			memcpy(&net_root_path, ext + 2, size);
-			net_root_path[size] = 0;
-		}
-		break;
-	case 18:		/* Extension path - Not yet supported */
-		/*
-		 * This can be used to send the information of the
-		 * vendor area in another file that the client can
-		 * access via TFTP.
-		 */
-		break;
-		/* IP host layer fields */
-	case 40:		/* NIS Domain name */
-		if (net_nis_domain[0] == 0) {
-			size = truncate_sz("NIS Domain Name",
-				sizeof(net_nis_domain), size);
-			memcpy(&net_nis_domain, ext + 2, size);
-			net_nis_domain[size] = 0;
-		}
-		break;
-#if defined(CONFIG_CMD_SNTP) && defined(CONFIG_BOOTP_NTPSERVER)
-	case 42:	/* NTP server IP */
-		net_copy_ip(&net_ntp_server, (struct in_addr *)(ext + 2));
-		break;
-#endif
-		/* Application layer fields */
-	case 43:		/* Vendor specific info - Not yet supported */
-		/*
-		 * Binary information to exchange specific
-		 * product information.
-		 */
-		break;
-		/* Reserved (custom) fields (128..254) */
-	}
-}
-
-static void bootp_process_vendor(u8 *ext, int size)
-{
-	u8 *end = ext + size;
-
-	debug("[BOOTP] Checking extension (%d bytes)...\n", size);
-
-	while ((ext < end) && (*ext != 0xff)) {
-		if (*ext == 0) {
-			ext++;
-		} else {
-			u8 *opt = ext;
-
-			ext += ext[1] + 2;
-			if (ext <= end)
-				bootp_process_vendor_field(opt);
-		}
-	}
-
-	debug("[BOOTP] Received fields:\n");
-	if (net_netmask.s_addr)
-		debug("net_netmask : %pI4\n", &net_netmask);
-
-	if (net_gateway.s_addr)
-		debug("net_gateway	: %pI4", &net_gateway);
-
-	if (net_boot_file_expected_size_in_blocks)
-		debug("net_boot_file_expected_size_in_blocks : %d\n",
-		      net_boot_file_expected_size_in_blocks);
-
-	if (net_hostname[0])
-		debug("net_hostname  : %s\n", net_hostname);
-
-	if (net_root_path[0])
-		debug("net_root_path  : %s\n", net_root_path);
-
-	if (net_nis_domain[0])
-		debug("net_nis_domain : %s\n", net_nis_domain);
-
-#if defined(CONFIG_CMD_SNTP) && defined(CONFIG_BOOTP_NTPSERVER)
-	if (net_ntp_server.s_addr)
-		debug("net_ntp_server : %pI4\n", &net_ntp_server);
-#endif
 }
 
 /*
@@ -320,18 +132,7 @@ static void bootp_handler(uchar *pkt, unsigned dest, struct in_addr sip,
 	if (check_reply_packet(pkt, dest, src, len))
 		return;
 
-	/*
-	 *	Got a good BOOTP reply.	 Copy the data into our variables.
-	 */
-#if defined(CONFIG_LED_STATUS) && defined(CONFIG_LED_STATUS_BOOT_ENABLE)
-	status_led_set(CONFIG_LED_STATUS_BOOT, CONFIG_LED_STATUS_OFF);
-#endif
-
 	store_net_params(bp);		/* Store net parameters from reply */
-
-	/* Retrieve extended information (we must parse the vendor area) */
-	if (net_read_u32((u32 *)&bp->bp_vend[0]) == htonl(BOOTP_VENDOR_MAGIC))
-		bootp_process_vendor((uchar *)&bp->bp_vend[4], len);
 
 	net_set_timeout_handler(0, (thand_f *)0);
 	bootstage_mark_name(BOOTSTAGE_ID_BOOTP_STOP, "bootp_stop");
@@ -350,57 +151,29 @@ static void nsfbootp_timeout_handler(void)
 	nsfbootp_request();
 }
 
-#define put_vci(e, str)						\
-	do {							\
-		size_t vci_strlen = strlen(str);		\
-		*e++ = 60;	/* Vendor Class Identifier */	\
-		*e++ = vci_strlen;				\
-		memcpy(e, str, vci_strlen);			\
-		e += vci_strlen;				\
-	} while (0)
-
-static u8 *add_vci(u8 *e)
-{
-	char *vci = NULL;
-	char *env_vci = env_get("bootp_vci");
-
-#if defined(CONFIG_SPL_BUILD) && defined(CONFIG_SPL_NET_VCI_STRING)
-	vci = CONFIG_SPL_NET_VCI_STRING;
-#elif defined(CONFIG_BOOTP_VCI_STRING)
-	vci = CONFIG_BOOTP_VCI_STRING;
-#endif
-
-	if (env_vci)
-		vci = env_vci;
-
-	if (vci)
-		put_vci(e, vci);
-
-	return e;
-}
-
 /*
  * Custom vend field for Nanosurf AG
  */
-static int bootp_extended(u8 *e)
+static int add_nsfbootp_vend_payload(u8 *e)
 {
 	char *nsfbootp_vend_payload;
-	u8 *start = e;
+	static const size_t max_str_len = 63;
+	static const size_t max_vend_len = 63;
 
 	/* Copy nsfboop_vend_payload env variable into vend field of bootp payload
 	 * or "Unkown" if not available */
-        nsfbootp_vend_payload = env_get("nsfbootp_vend_payload");
-        if (!nsfbootp_vend_payload) {
-		        nsfbootp_vend_payload = "Unknown";
-        }
-        int nsfbootp_vend_payload_len = max(strlen(nsfbootp_vend_payload), 63);
-        memcpy(e, nsfbootp_vend_payload, nsfbootp_vend_payload_len);
-        e += nsfbootp_vend_payload_len;
+	nsfbootp_vend_payload = env_get("nsfbootp_vend_payload");
+	if (!nsfbootp_vend_payload) {
+			nsfbootp_vend_payload = "Unknown";
+	}
+	size_t nsfbootp_vend_payload_len = max(strlen(nsfbootp_vend_payload), max_str_len);
+	memcpy(e, nsfbootp_vend_payload, nsfbootp_vend_payload_len);
+	e += nsfbootp_vend_payload_len;
 
 	/* Set rest of vend part to 0 */
-	memset(e, 0, 64 - nsfbootp_vend_payload_len);
+	memset(e, 0, max_vend_len - nsfbootp_vend_payload_len);
 
-	return 64; /* e - start; */
+	return max_vend_len;
 }
 
 void nsfbootp_reset(void)
@@ -460,8 +233,7 @@ void nsfbootp_request(void)
 	memcpy(bp->bp_chaddr, net_ethaddr, 6);
 	copy_filename(bp->bp_file, net_boot_file_name, sizeof(bp->bp_file));
 
-	/* Request additional information from the BOOTP/DHCP server */
-	extlen = bootp_extended((u8 *)bp->bp_vend);
+	extlen = add_nsfbootp_vend_payload((u8 *)bp->bp_vend);
 
 	/*
 	 *	Bootp ID is the lower 4 bytes of our ethernet address
