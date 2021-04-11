@@ -1,5 +1,5 @@
 /*
- *	Copyied from bootp.h, edit for Nanosurf AG made by Adrian Rudin, Daniel Friedrich
+ *	Copyied from bootp.*, edit for Nanosurf AG made by Adrian Rudin, Daniel Friedrich
  *
  *	Copyright 1994, 1995, 2000 Neil Russell.
  *	(See License)
@@ -31,11 +31,16 @@ struct nsfbootp_hdr {
 	u8		bp_hops;	/* Hop count (gateway thing)	*/
 	u32		bp_id;		/* Transaction ID		*/
 	u16		bp_secs;	/* Seconds since boot		*/
-	u16		bp_spare1;	/* Alignment			*/
-	struct in_addr	bp_ciaddr;	/* Client IP address		*/
-	struct in_addr	bp_yiaddr;	/* Your (client) IP address	*/
-	struct in_addr	bp_siaddr;	/* Server IP address		*/
-	struct in_addr	bp_giaddr;	/* Gateway IP address		*/
+	u16		bp_cmd;	/* Command			*/
+# define CMD_NO_OP 0
+# define CMD_USING_DHCP 1
+# define CMD_USING_STATIC 2
+# define CMD_SWITCH_TO_DHCP 3
+# define CMD_SWITCH_TO_STATIC 4
+	struct in_addr	bp_ip_addr;	/* Client IP address		*/
+	struct in_addr	bp_net_mask;	/* Your (client) IP address	*/
+	struct in_addr	bp_server_addr;	/* Server IP address		*/
+	struct in_addr	bp_gateway_addr;	/* Gateway IP address		*/
 	u8		bp_chaddr[16];	/* Client hardware address	*/
 	char		bp_sname[64];	/* Server host name		*/
 	char		bp_file[128];	/* Boot file name		*/

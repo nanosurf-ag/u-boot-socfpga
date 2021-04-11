@@ -1,5 +1,5 @@
 /*
- *	Copied from bootp.c, edit made for Nanosurf AG by Adrian Rudin
+  *	Copyied from bootp.*, edit for Nanosurf AG made by Adrian Rudin, Daniel Friedrich
  *
  *	Copyright 1994, 1995, 2000 Neil Russell.
  *	(See License)
@@ -9,12 +9,7 @@
  */
 
 #include <common.h>
-#include <command.h>
-#include <efi_loader.h>
-#include <net.h>
-#include <net/tftp.h>
 #include "nsfbootp.h"
-
 
 #define PORT_NSFBOOTPS	33067		/* NSFBOOTP server UDP port */
 #define PORT_NSFBOOTPC	33068		/* NSFBOOTP client UDP port */
@@ -28,11 +23,14 @@ unsigned int	nsfbootp_num_ids;
 int		nsfbootp_try;
 ulong		nsfbootp_start;
 ulong		nsfbootp_timeout;
+bool		nsfbootp_require_reboot;
+/* global reset function */
+extern int do_reset(cmd_tbl_t *cmdtp, int flag, int argc, char * const argv[]);
 
-//Reusing from bootp.c, so no need to define it here
-// external char net_nis_domain[32] = {0,}; /* Our NIS domain */
-// external char net_hostname[32] = {0,}; /* Our hostname */
-// external char net_root_path[64] = {0,}; /* Our bootpath */
+static void nsfbootp_reboot(void)
+{
+	do_reset(NULL, 0,0, NULL);
+}
 
 static void bootp_add_id(ulong id)
 {
@@ -84,35 +82,84 @@ static int check_reply_packet(uchar *pkt, unsigned dest, unsigned src,
 	return retval;
 }
 
-/*
- * Copy parameters of interest from BOOTP_REPLY/DHCP_OFFER packet
- */
-static void store_net_params(struct nsfbootp_hdr *bp)
+static void store_net_params_static(struct nsfbootp_hdr *bp)
+{
+	printf("NSFBOOTP change network settings to static\n");
+	static const ulong nsf_use_static = 1;
+	char tmp[22];
+
+	env_set_ulong("nsf_use_static", nsf_use_static);
+
+	ip_to_string(bp->bp_ip_addr, tmp);
+	printf("NSFBOOTP nsf_static_ipaddr = %s\n", tmp);
+	env_set("nsf_static_ipaddr", tmp);
+
+	ip_to_string(bp->bp_net_mask, tmp);
+	printf("NSFBOOTP nsf_static_netmask = %s\n", tmp);
+	env_set("nsf_static_netmask", tmp);
+
+	ip_to_string(bp->bp_gateway_addr, tmp);
+	printf("NSFBOOTP nsf_static_gatewayip = %s\n", tmp);
+	env_set("nsf_static_gatewayip", tmp);
+
+	nsfbootp_require_reboot = true;
+}
+
+static void store_net_params_automatic(struct nsfbootp_hdr *bp)
+{
+	printf("NSFBOOTP change network settings to automatic (dhcp/zeroconf)\n");
+	static const ulong nsf_automatic_static = 0;
+
+	env_set_ulong("nsf_use_static", nsf_automatic_static);
+
+	nsfbootp_require_reboot = true;
+}
+
+static void store_server_address(struct nsfbootp_hdr *bp)
 {
 	struct in_addr tmp_ip;
-	bool overwrite_serverip = true;
+	net_copy_ip(&tmp_ip, &bp->bp_server_addr);
 
-	net_copy_ip(&tmp_ip, &bp->bp_siaddr);
-	if (tmp_ip.s_addr != 0 && (overwrite_serverip || !net_server_ip.s_addr))
-		net_copy_ip(&net_server_ip, &bp->bp_siaddr);
+	if (tmp_ip.s_addr != 0 && !net_server_ip.s_addr)
+		net_copy_ip(&net_server_ip, &bp->bp_server_addr);
+
 	memcpy(net_server_ethaddr,
-	       ((struct ethernet_hdr *)net_rx_packet)->et_src, 6);
+		((struct ethernet_hdr *)net_rx_packet)->et_src, 6);
+}
+
+static void store_boot_file(struct nsfbootp_hdr *bp)
+{
 	if ((strlen(bp->bp_file) > 0) && !net_boot_file_name_explicit) {
 		copy_filename(net_boot_file_name, bp->bp_file,
 			      sizeof(net_boot_file_name));
 	}
 
-	debug("net_boot_file_name: %s\n", net_boot_file_name);
-
-	/* Propagate to environment:
-	 * don't delete exising entry when BOOTP / DHCP reply does
-	 * not contain a new value
-	 */
 	if (*net_boot_file_name)
 		env_set("bootfile", net_boot_file_name);
+}
 
-	/* Don't set IP from nsf bootp reply, this could be used for static IP push */
-	/* net_copy_ip(&net_ip, &bp->bp_yiaddr); */
+/*
+ * Copy parameters of interest from BOOTP_REPLY/DHCP_OFFER packet
+ */
+static void store_net_params(struct nsfbootp_hdr *bp)
+{
+	store_boot_file(bp);
+	store_server_address(bp);
+
+	switch(bp->bp_cmd)
+	{
+		case CMD_NO_OP:
+		case CMD_USING_DHCP:
+		case CMD_USING_STATIC:
+			/* no operation */
+		break;
+		case CMD_SWITCH_TO_DHCP:
+			store_net_params_automatic(bp);
+		break;
+		case CMD_SWITCH_TO_STATIC:
+			store_net_params_static(bp);
+		break;
+	}
 }
 
 /*
@@ -122,43 +169,33 @@ static void bootp_handler(uchar *pkt, unsigned dest, struct in_addr sip,
 			  unsigned src, unsigned len)
 {
 	struct nsfbootp_hdr *bp;
-
-	debug("got BOOTP packet (src=%d, dst=%d, len=%d want_len=%zu)\n",
-	      src, dest, len, sizeof(struct nsfbootp_hdr));
-
 	bp = (struct nsfbootp_hdr *)pkt;
 
-	/* Filter out pkts we don't want */
 	if (check_reply_packet(pkt, dest, src, len))
 		return;
-
-	store_net_params(bp);		/* Store net parameters from reply */
+	nsfbootp_require_reboot = false;
+	store_net_params(bp);
 
 	net_set_timeout_handler(0, (thand_f *)0);
 	bootstage_mark_name(BOOTSTAGE_ID_BOOTP_STOP, "bootp_stop");
 
-	debug("Got good BOOTP\n");
-
-	net_auto_load();
+	if(nsfbootp_require_reboot == true) {
+		nsfbootp_reboot();
+	}
+	else {
+		net_auto_load();
+	}
 }
 
-/*
- *	Timeout on BOOTP/DHCP request.
- */
-static void nsfbootp_timeout_handler(void)
-{
+static void nsfbootp_timeout_handler(void) {
 	net_set_timeout_handler(nsfbootp_timeout, nsfbootp_timeout_handler);
 	nsfbootp_request();
 }
 
-/*
- * Custom vend field for Nanosurf AG
- */
-static int add_nsfbootp_vend_payload(u8 *e)
-{
+static int add_nsfbootp_vend_payload(u8 *e) {
 	char *nsfbootp_vend_payload;
 	static const size_t max_str_len = 63;
-	static const size_t max_vend_len = 63;
+	static const size_t max_vend_len = 64;
 
 	/* Copy nsfboop_vend_payload env variable into vend field of bootp payload
 	 * or "Unkown" if not available */
@@ -182,6 +219,7 @@ void nsfbootp_reset(void)
 	nsfbootp_try = 0;
 	nsfbootp_start = get_timer(0);
 	nsfbootp_timeout = 1000; /* 1000ms retry interval */
+	nsfbootp_require_reboot = false;
 }
 
 void nsfbootp_request(void)
@@ -191,7 +229,6 @@ void nsfbootp_request(void)
 	int extlen, pktlen, iplen;
 	int eth_hdr_size;
 	u32 bootp_id;
-	struct in_addr zero_ip;
 	struct in_addr bcast_ip;
 
 	bootstage_mark_name(BOOTSTAGE_ID_BOOTP_START, "nsfbootp_start");
@@ -225,11 +262,29 @@ void nsfbootp_request(void)
 	 * first request otherwise
 	 */
 	bp->bp_secs = htons(get_timer(nsfbootp_start) / 1000);
-	zero_ip.s_addr = 0;
-	net_write_ip(&bp->bp_ciaddr, net_ip);
-	net_write_ip(&bp->bp_yiaddr, zero_ip);
-	net_write_ip(&bp->bp_siaddr, zero_ip);
-	net_write_ip(&bp->bp_giaddr, zero_ip);
+
+	const u16 nsf_use_static = (u16)env_get_ulong("nsf_use_static", 10, 0);
+	if(nsf_use_static == 1) {
+		bp->bp_cmd = (u16)CMD_USING_STATIC;
+	}
+	else {
+		bp->bp_cmd = (u16)CMD_USING_DHCP;
+	}
+
+	const char* nsf_static_ipaddr_str = env_get("nsf_static_ipaddr");
+	const struct in_addr nsf_static_ipaddr = string_to_ip(nsf_static_ipaddr_str);
+
+	const char* nsf_static_netmask_str = env_get("nsf_static_netmask");
+	const struct in_addr nsf_static_netmask= string_to_ip(nsf_static_netmask_str);
+
+	const char* nsf_static_gatewayip_str = env_get("nsf_static_gatewayip");
+	const struct in_addr nsf_static_gatewayip= string_to_ip(nsf_static_gatewayip_str);
+
+	net_write_ip(&bp->bp_ip_addr, nsf_static_ipaddr);
+	net_write_ip(&bp->bp_net_mask, nsf_static_netmask);
+	net_write_ip(&bp->bp_gateway_addr, nsf_static_gatewayip);
+	net_write_ip(&bp->bp_server_addr, net_server_ip);
+
 	memcpy(bp->bp_chaddr, net_ethaddr, 6);
 	copy_filename(bp->bp_file, net_boot_file_name, sizeof(bp->bp_file));
 
