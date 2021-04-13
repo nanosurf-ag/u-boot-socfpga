@@ -9,6 +9,8 @@
  */
 
 #include <common.h>
+#include <environment.h>
+
 #include "nsfbootp.h"
 
 #define PORT_NSFBOOTPS	33067		/* NSFBOOTP server UDP port */
@@ -24,6 +26,7 @@ int		nsfbootp_try;
 ulong		nsfbootp_start;
 ulong		nsfbootp_timeout;
 bool		nsfbootp_require_reboot;
+bool		nsfbootp_boot_os;
 /* global reset function */
 extern int do_reset(cmd_tbl_t *cmdtp, int flag, int argc, char * const argv[]);
 
@@ -85,10 +88,9 @@ static int check_reply_packet(uchar *pkt, unsigned dest, unsigned src,
 static void store_net_params_static(struct nsfbootp_hdr *bp)
 {
 	printf("NSFBOOTP change network settings to static\n");
-	static const ulong nsf_use_static = 1;
 	char tmp[22];
 
-	env_set_ulong("nsf_use_static", nsf_use_static);
+	env_set("nsf_use_static", "1");
 
 	ip_to_string(bp->bp_ip_addr, tmp);
 	printf("NSFBOOTP nsf_static_ipaddr = %s\n", tmp);
@@ -108,9 +110,8 @@ static void store_net_params_static(struct nsfbootp_hdr *bp)
 static void store_net_params_automatic(struct nsfbootp_hdr *bp)
 {
 	printf("NSFBOOTP change network settings to automatic (dhcp/zeroconf)\n");
-	static const ulong nsf_automatic_static = 0;
 
-	env_set_ulong("nsf_use_static", nsf_automatic_static);
+	env_set("nsf_use_static", "0");
 
 	nsfbootp_require_reboot = true;
 }
@@ -143,15 +144,19 @@ static void store_boot_file(struct nsfbootp_hdr *bp)
  */
 static void store_net_params(struct nsfbootp_hdr *bp)
 {
+	const u16 cmd = ntohs(bp->bp_cmd);
+
+	printf("NSFBOOTP store_net_params with cmd = %d\n", cmd);
+
 	store_boot_file(bp);
 	store_server_address(bp);
 
-	switch(bp->bp_cmd)
+	switch(cmd)
 	{
 		case CMD_NO_OP:
 		case CMD_USING_DHCP:
 		case CMD_USING_STATIC:
-			/* no operation */
+			nsfbootp_boot_os = true;
 		break;
 		case CMD_SWITCH_TO_DHCP:
 			store_net_params_automatic(bp);
@@ -174,15 +179,18 @@ static void bootp_handler(uchar *pkt, unsigned dest, struct in_addr sip,
 	if (check_reply_packet(pkt, dest, src, len))
 		return;
 	nsfbootp_require_reboot = false;
+	nsfbootp_boot_os = false;
+
 	store_net_params(bp);
 
 	net_set_timeout_handler(0, (thand_f *)0);
 	bootstage_mark_name(BOOTSTAGE_ID_BOOTP_STOP, "bootp_stop");
 
 	if(nsfbootp_require_reboot == true) {
+		env_save();
 		nsfbootp_reboot();
 	}
-	else {
+	else if(nsfbootp_boot_os == true) {
 		net_auto_load();
 	}
 }
@@ -220,6 +228,7 @@ void nsfbootp_reset(void)
 	nsfbootp_start = get_timer(0);
 	nsfbootp_timeout = 1000; /* 1000ms retry interval */
 	nsfbootp_require_reboot = false;
+	nsfbootp_boot_os = false;
 }
 
 void nsfbootp_request(void)
@@ -229,6 +238,7 @@ void nsfbootp_request(void)
 	int extlen, pktlen, iplen;
 	int eth_hdr_size;
 	u32 bootp_id;
+	u16 cmd;
 	struct in_addr bcast_ip;
 
 	bootstage_mark_name(BOOTSTAGE_ID_BOOTP_START, "nsfbootp_start");
@@ -263,13 +273,14 @@ void nsfbootp_request(void)
 	 */
 	bp->bp_secs = htons(get_timer(nsfbootp_start) / 1000);
 
-	const u16 nsf_use_static = (u16)env_get_ulong("nsf_use_static", 10, 0);
-	if(nsf_use_static == 1) {
-		bp->bp_cmd = (u16)CMD_USING_STATIC;
+	const char* nsf_use_static_str = env_get("nsf_use_static");
+	if(strcmp(nsf_use_static_str, "1") == 0) {
+		cmd = (u16)CMD_USING_STATIC;
 	}
 	else {
-		bp->bp_cmd = (u16)CMD_USING_DHCP;
+		cmd = (u16)CMD_USING_DHCP;
 	}
+	bp->bp_cmd = htons(cmd);
 
 	const char* nsf_static_ipaddr_str = env_get("nsf_static_ipaddr");
 	const struct in_addr nsf_static_ipaddr = string_to_ip(nsf_static_ipaddr_str);
