@@ -20,6 +20,8 @@
 #define CONFIG_BOOTP_ID_CACHE_SIZE 4
 #endif
 
+#define BP_FLAG_BIT_MASK_IS_STATIC 0x01
+
 u32		nsfbootp_ids[CONFIG_BOOTP_ID_CACHE_SIZE];
 unsigned int	nsfbootp_num_ids;
 int		nsfbootp_try;
@@ -69,7 +71,7 @@ static int check_reply_packet(uchar *pkt, unsigned dest, unsigned src,
 		retval = -1;
 	else if (len < sizeof(struct nsfbootp_hdr) - NSFOPT_FIELD_SIZE)
 		retval = -2;
-	else if (bp->bp_op != OP_BOOTREPLY)
+	else if (bp->bp_op != OP_BOOTREPLY && bp->bp_op != OP_SETNETWORK)
 		retval = -3;
 	else if (bp->bp_htype != HWT_ETHER)
 		retval = -4;
@@ -80,7 +82,7 @@ static int check_reply_packet(uchar *pkt, unsigned dest, unsigned src,
 	else if (memcmp(bp->bp_chaddr, net_ethaddr, HWL_ETHER) != 0)
 		retval = -7;
 
-	debug("Filtering pkt = %d\n", retval);
+	//printf("NSFBOOTP store_net_params Filtering pkt = %d\n", retval);
 
 	return retval;
 }
@@ -142,28 +144,23 @@ static void store_boot_file(struct nsfbootp_hdr *bp)
 /*
  * Copy parameters of interest from BOOTP_REPLY/DHCP_OFFER packet
  */
-static void store_net_params(struct nsfbootp_hdr *bp)
-{
-	const u16 cmd = ntohs(bp->bp_cmd);
-
-	printf("NSFBOOTP store_net_params with cmd = %d\n", cmd);
+static void store_net_params(struct nsfbootp_hdr *bp) {
+	const u16 flags = ntohs(bp->bp_flags);
+	const bool is_static_network = flags & BP_FLAG_BIT_MASK_IS_STATIC;
 
 	store_boot_file(bp);
 	store_server_address(bp);
 
-	switch(cmd)
-	{
-		case CMD_NO_OP:
-		case CMD_USING_DHCP:
-		case CMD_USING_STATIC:
-			nsfbootp_boot_os = true;
-		break;
-		case CMD_SWITCH_TO_DHCP:
-			store_net_params_automatic(bp);
-		break;
-		case CMD_SWITCH_TO_STATIC:
+	if(bp->bp_op == OP_SETNETWORK) {
+		if(is_static_network) {
 			store_net_params_static(bp);
-		break;
+		}
+		else {
+			store_net_params_automatic(bp);
+		}
+	}
+	else if(bp->bp_op == OP_BOOTREPLY){
+		nsfbootp_boot_os = true;
 	}
 }
 
@@ -238,7 +235,7 @@ void nsfbootp_request(void)
 	int extlen, pktlen, iplen;
 	int eth_hdr_size;
 	u32 bootp_id;
-	u16 cmd;
+	u16 flags;
 	struct in_addr bcast_ip;
 
 	bootstage_mark_name(BOOTSTAGE_ID_BOOTP_START, "nsfbootp_start");
@@ -273,14 +270,15 @@ void nsfbootp_request(void)
 	 */
 	bp->bp_secs = htons(get_timer(nsfbootp_start) / 1000);
 
+	flags = 0;
 	const char* nsf_use_static_str = env_get("nsf_use_static");
 	if(strcmp(nsf_use_static_str, "1") == 0) {
-		cmd = (u16)CMD_USING_STATIC;
+		flags |= BP_FLAG_BIT_MASK_IS_STATIC;
 	}
 	else {
-		cmd = (u16)CMD_USING_DHCP;
+		flags &= ~(BP_FLAG_BIT_MASK_IS_STATIC);
 	}
-	bp->bp_cmd = htons(cmd);
+	bp->bp_flags = htons(flags);
 
 	const char* nsf_static_ipaddr_str = env_get("nsf_static_ipaddr");
 	const struct in_addr nsf_static_ipaddr = string_to_ip(nsf_static_ipaddr_str);

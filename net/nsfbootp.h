@@ -24,6 +24,7 @@ struct nsfbootp_hdr {
 	u8		bp_op;		/* Operation			*/
 # define OP_BOOTREQUEST	1
 # define OP_BOOTREPLY	2
+# define OP_SETNETWORK	3
 	u8		bp_htype;	/* Hardware type		*/
 # define HWT_ETHER	1
 	u8		bp_hlen;	/* Hardware address length	*/
@@ -31,7 +32,7 @@ struct nsfbootp_hdr {
 	u8		bp_hops;	/* Hop count (gateway thing)	*/
 	u32		bp_id;		/* Transaction ID		*/
 	u16		bp_secs;	/* Seconds since boot		*/
-	u16		bp_cmd;	/* Command			*/
+	u16		bp_flags;	/* Command			*/
 # define CMD_NO_OP 0
 # define CMD_USING_DHCP 1
 # define CMD_USING_STATIC 2
